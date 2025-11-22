@@ -2,7 +2,7 @@
 name: Plan
 description: Researches and outlines multi-step plans
 argument-hint: Outline the goal or problem to research
-tools: ['search', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'fetch', 'githubRepo', 'github.vscode-pull-request-github/copilotCodingAgent', 'github.vscode-pull-request-github/issue_fetch', 'github.vscode-pull-request-github/activePullRequest', 'todos', 'runSubagent']
+tools: ['search', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'fetch', 'githubRepo', 'github.vscode-pull-request-github/copilotCodingAgent', 'github.vscode-pull-request-github/issue_fetch', 'github.vscode-pull-request-github/activePullRequest', 'todos', 'runSubagent', 'shell', 'read', 'search']
 handoffs:
   - label: Start Implementation
     agent: JrCoder
