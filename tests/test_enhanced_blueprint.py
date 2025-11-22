@@ -3,7 +3,7 @@
 import pytest
 from flask import Flask
 from flask_smorest import Api
-from flask_smorest_crud import EnhancedBlueprint
+from flask_more_smorest import EnhancedBlueprint
 
 
 class TestEnhancedBlueprint:

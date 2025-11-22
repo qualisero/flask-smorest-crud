@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
 from flask_smorest import Api
-from flask_smorest_crud import CRUDBlueprint
+from flask_more_smorest import CRUDBlueprint
 
 
 class TestCRUDBlueprint:
@@ -12,7 +12,7 @@ class TestCRUDBlueprint:
 
     def test_crud_blueprint_inheritance(self):
         """Test that CRUDBlueprint inherits from EnhancedBlueprint."""
-        from flask_smorest_crud.enhanced_blueprint import EnhancedBlueprint
+        from flask_more_smorest.enhanced_blueprint import EnhancedBlueprint
 
         assert issubclass(CRUDBlueprint, EnhancedBlueprint)
 
@@ -20,7 +20,7 @@ class TestCRUDBlueprint:
         """Test parameter processing without full initialization."""
         # We can test parameter processing by patching the problematic parts
         with (
-            patch("flask_smorest_crud.crud_blueprint.import_module") as mock_import,
+            patch("flask_more_smorest.crud_blueprint.import_module") as mock_import,
             patch.object(CRUDBlueprint, "__init__", return_value=None) as mock_init,
         ):
 
@@ -33,7 +33,7 @@ class TestCRUDBlueprint:
     def test_url_prefix_generation_logic(self):
         """Test URL prefix generation logic."""
         # Just test the parameter processing logic without full initialization
-        from flask_smorest_crud.utils import convert_snake_to_camel
+        from flask_more_smorest.utils import convert_snake_to_camel
 
         # Test the utility function used in URL prefix generation
         test_name = "test_models"
@@ -50,7 +50,7 @@ class TestCRUDBlueprintParameterHandling:
 
     def test_parameter_extraction_logic(self):
         """Test the parameter extraction logic."""
-        from flask_smorest_crud.utils import convert_snake_to_camel
+        from flask_more_smorest.utils import convert_snake_to_camel
 
         # Test the utility function that's used in parameter processing
         assert convert_snake_to_camel("user_profile") == "UserProfile"

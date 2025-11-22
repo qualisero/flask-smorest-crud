@@ -1,7 +1,7 @@
-# Flask-Smorest CRUD Extensions
+# Flask-More-Smorest
 
-[![PyPI version](https://badge.fury.io/py/flask-smorest-crud.svg)](https://badge.fury.io/py/flask-smorest-crud)
-[![Python Support](https://img.shields.io/pypi/pyversions/flask-smorest-crud.svg)](https://pypi.org/project/flask-smorest-crud/)
+[![PyPI version](https://badge.fury.io/py/flask-more-smorest.svg)](https://badge.fury.io/py/flask-more-smorest)
+[![Python Support](https://img.shields.io/pypi/pyversions/flask-more-smorest.svg)](https://pypi.org/project/flask-more-smorest/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
@@ -21,7 +21,7 @@ A powerful extension library for Flask-Smorest that provides automatic CRUD oper
 ### Installation
 
 ```bash
-pip install flask-smorest-crud
+pip install flask-more-smorest
 ```
 
 ### Basic Usage
@@ -29,7 +29,7 @@ pip install flask-smorest-crud
 ```python
 from flask import Flask
 from flask_smorest import Api
-from flask_smorest_crud import CRUDBlueprint
+from flask_more_smorest import CRUDBlueprint
 
 app = Flask(__name__)
 app.config['API_TITLE'] = 'My API'
@@ -60,7 +60,7 @@ This automatically creates the following endpoints:
 ### Enhanced Blueprints
 
 ```python
-from flask_smorest_crud import EnhancedBlueprint
+from flask_more_smorest import EnhancedBlueprint
 
 # Regular enhanced blueprint with annotations
 blp = EnhancedBlueprint('auth', __name__)
@@ -130,7 +130,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_smorest import Api
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from flask_smorest_crud import CRUDBlueprint
+from flask_more_smorest import CRUDBlueprint
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///example.db'

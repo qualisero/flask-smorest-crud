@@ -1,4 +1,4 @@
-# Contributing to Flask-Smorest CRUD Extensions
+# Contributing to Flask-More-Smorest
 
 Thank you for your interest in contributing! This document outlines the process for contributing to this project.
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This document outlines the process 
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/flask-smorest-crud.git
-   cd flask-smorest-crud
+   git clone https://github.com/yourusername/flask-more-smorest.git
+   cd flask-more-smorest
    ```
 
 2. **Install Poetry** (if not already installed):
@@ -58,7 +58,7 @@ Thank you for your interest in contributing! This document outlines the process 
 4. **Run the full test suite**:
    ```bash
    poetry run pytest
-   poetry run pytest --cov=src/flask_smorest_crud
+   poetry run pytest --cov=src/flask_more_smorest
    ```
 
 5. **Run linting and formatting**:
@@ -119,7 +119,7 @@ def process_user_data(
 
 ```python
 import pytest
-from flask_smorest_crud import CRUDBlueprint
+from flask_more_smorest import CRUDBlueprint
 
 def test_crud_blueprint_creation():
     \"\"\"Test that CRUDBlueprint can be created with minimal parameters.\"\"\"

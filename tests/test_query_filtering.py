@@ -5,7 +5,7 @@ from datetime import datetime, date
 from marshmallow import fields, Schema
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import DeclarativeBase
-from flask_smorest_crud.query_filtering import generate_filter_schema, get_statements_from_filters
+from flask_more_smorest.query_filtering import generate_filter_schema, get_statements_from_filters
 
 
 class Base(DeclarativeBase):

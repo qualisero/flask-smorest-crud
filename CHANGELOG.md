@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Renamed package from `flask-smorest-crud` to `flask-more-smorest`
+- Updated all import statements and references
+- Updated PyPI package name and repository URLs
+
 ### Added
 - Initial PyPI package structure
 - Comprehensive documentation and examples
@@ -16,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests with pytest framework
 
 ### Changed
-- Moved source code to proper package structure under `src/flask_smorest_crud/`
+- Moved source code to proper package structure under `src/flask_more_smorest/`
 - Updated pyproject.toml with complete package metadata
 - Enhanced docstrings following Google style guide
 

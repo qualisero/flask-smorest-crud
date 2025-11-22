@@ -1,11 +1,11 @@
-"""Flask-Smorest CRUD Extensions.
+"""Flask-More-Smorest Extensions.
 
 A powerful extension library for Flask-Smorest that provides automatic CRUD operations,
 enhanced blueprints with annotations, and advanced query filtering capabilities.
 
 Example:
     from flask import Flask
-    from flask_smorest_crud import CRUDBlueprint
+    from flask_more_smorest import CRUDBlueprint
 
     app = Flask(__name__)
 

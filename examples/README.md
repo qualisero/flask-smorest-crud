@@ -1,6 +1,6 @@
-# Flask-Smorest CRUD Examples
+# Flask-More-Smorest Examples
 
-This directory contains example applications demonstrating the usage of Flask-Smorest-CRUD extensions.
+This directory contains example applications demonstrating the usage of Flask-More-Smorest extensions.
 
 ## Examples
 
@@ -84,7 +84,7 @@ GET /api/products/?price__min=50&price__max=500&is_available=true
 Both examples require the same dependencies as the main package:
 
 ```bash
-pip install flask-smorest-crud
+pip install flask-more-smorest
 ```
 
 Or for development:

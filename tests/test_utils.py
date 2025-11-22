@@ -1,7 +1,7 @@
 """Tests for utility functions."""
 
 import pytest
-from flask_smorest_crud.utils import convert_snake_to_camel
+from flask_more_smorest.utils import convert_snake_to_camel
 
 
 class TestConvertSnakeToCamel:
