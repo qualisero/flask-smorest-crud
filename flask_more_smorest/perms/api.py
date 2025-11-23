@@ -5,7 +5,7 @@ from flask_jwt_extended import verify_jwt_in_request, exceptions as jwt_exceptio
 from apispec.ext.marshmallow import resolver as default_resolver
 from marshmallow import Schema
 
-from .exceptions import UnauthorizedError, ForbiddenError
+from error.exceptions import UnauthorizedError, ForbiddenError
 
 
 class Api(ApiOrig):
@@ -70,7 +70,7 @@ class Api(ApiOrig):
                 raise UnauthorizedError(f"Invalid token ({e})")
 
             if admin_endpoint:
-                from .user import User
+                from .user_models import User
 
                 if not User.is_current_user_admin():
                     raise ForbiddenError("Admin access only")

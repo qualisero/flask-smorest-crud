@@ -1,14 +1,11 @@
 """Query filtering utilities for Flask-Smorest CRUD operations."""
 
-from typing import Type, Any, Dict, Set, List, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import marshmallow as ma
 from sqlalchemy.orm import DeclarativeBase
 
-if TYPE_CHECKING:
-    from sqlalchemy import Select
 
-
-def generate_filter_schema(base_schema: Type[ma.Schema]) -> Type[ma.Schema]:
+def generate_filter_schema(base_schema: type[ma.Schema]) -> type[ma.Schema]:
     """Generate a filtering schema from a base schema.
 
     This function creates a new schema class that can be used for filtering
@@ -91,7 +88,7 @@ def generate_filter_schema(base_schema: Type[ma.Schema]) -> Type[ma.Schema]:
     return FilterSchema
 
 
-def get_statements_from_filters(kwargs: Dict[str, Any], model: Type[DeclarativeBase]) -> Set[Any]:
+def get_statements_from_filters(kwargs: dict[str, Any], model: type[DeclarativeBase]) -> set[Any]:
     """Convert query kwargs into SQLAlchemy filters based on the schema.
 
     This function processes filtering parameters and converts them to
@@ -99,13 +96,13 @@ def get_statements_from_filters(kwargs: Dict[str, Any], model: Type[DeclarativeB
     date fields and comparison operators.
 
     Args:
-        kwargs: Dictionary of filter parameters
+        kwargs: dictionary of filter parameters
         model: SQLAlchemy model class
 
     Returns:
-        Set of SQLAlchemy filter conditions
+        set of SQLAlchemy filter conditions
     """
-    filters: Set[Any] = set()
+    filters: set[Any] = set()
 
     for field_name, value in kwargs.items():
         if value is None:

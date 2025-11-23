@@ -41,9 +41,11 @@ def handle_generic_exception(e: Exception):
 
 def handle_db_exception(e: DatabaseError):
     # Rollback the session:
-    from .database import db
+    from sqla import db
 
-    db.session.rollback()
+    # Check that db was initialized
+    if db.session is not None:
+        db.session.rollback()
     api_exc = DBError(*e.args)
     return api_exc.make_error_response()
 

@@ -3,7 +3,7 @@ User models and authentication system for Flask-More-Smorest.
 
 This module provides a concrete User model with full functionality for:
 - Email-based authentication with secure password hashing
-- Role-based permissions with domain scoping  
+- Role-based permissions with domain scoping
 - User settings for key-value preferences
 - JWT token support for API authentication
 - Built-in relationships to roles, settings, and tokens
@@ -19,10 +19,10 @@ from flask_more_smorest.user import User
 # Extend User with additional fields
 class EmployeeUser(User):
     __tablename__ = "employee_users"  # Custom table name
-    
+
     employee_id: Mapped[str] = mapped_column(db.String(50), unique=True)
     department: Mapped[str] = mapped_column(db.String(100))
-    
+
     def get_employee_permissions(self):
         # Custom method for employee-specific logic
         return ["read_timesheet", "submit_expenses"]
@@ -36,13 +36,13 @@ import enum
 from flask_more_smorest.user import UserRole
 
 class EmployeeRole(str, enum.Enum):
-    HR_MANAGER = "hr_manager" 
+    HR_MANAGER = "hr_manager"
     DEPARTMENT_HEAD = "department_head"
     EMPLOYEE = "employee"
 
 class EmployeeUserRole(UserRole):
     __tablename__ = "employee_user_roles"
-    
+
     # Custom methods for employee role logic
     def get_employee_permissions(self):
         return self.role
@@ -52,7 +52,7 @@ class EmployeeUserRole(UserRole):
 
 All User instances (including subclasses) automatically inherit:
 - Role management via User.roles relationship
-- Settings storage via User.settings relationship  
+- Settings storage via User.settings relationship
 - Token authentication via User.tokens relationship
 - Permission checking methods (has_role, is_admin, etc.)
 - Domain-scoped multi-tenant support
@@ -64,34 +64,53 @@ import uuid
 import enum
 import os
 import datetime as dt
-from typing import TYPE_CHECKING, Any, Type
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.declarative import declared_attr
 
-from .database import db
-from .utils import check_password_hash, generate_password_hash
-from .exceptions import UnprocessableEntity
-from .models import BaseModel
+from utils import check_password_hash, generate_password_hash
+from error.exceptions import UnprocessableEntity
+
+from sqla import db
+from .base_perms_model import BasePermsModel
 
 from flask_jwt_extended import verify_jwt_in_request, current_user as jwt_current_user, exceptions
 
 logger = logging.getLogger(__name__)
 
 
+# Set the current_user reference to JWT current user
+current_user: "User" = jwt_current_user
+
+
+def get_current_user_id() -> uuid.UUID | None:
+    """Get current user ID if authenticated."""
+    try:
+        verify_jwt_in_request()
+        return current_user.id
+    except exceptions.JWTDecodeError:
+        return None
+    except Exception as e:
+        logger.exception("Error getting current user ID: %s", e)
+        return None
+
+
 # Default role enum - can be overridden via UserRole subclasses
 class DefaultUserRole(str, enum.Enum):
     """Default user role enumeration."""
+
     SUPERADMIN = "superadmin"
     ADMIN = "admin"
     USER = "user"
 
-class User(BaseModel):
+
+class User(BasePermsModel):
     """Concrete User model with role-based permissions and domain support.
 
     This is the main User model for Flask-More-Smorest applications. It provides:
-    - Email-based authentication with secure password hashing  
+    - Email-based authentication with secure password hashing
     - Role-based permissions with optional domain scoping
     - JWT token support for API authentication
     - User settings storage for key-value preferences
@@ -99,11 +118,11 @@ class User(BaseModel):
     - Permission checking methods for CRUD operations
 
     **Using the Default User Model:**
-    
+
     Import and use directly:
     ```python
     from flask_more_smorest.user import User
-    
+
     # User model is ready to use with all features
     user = User(email="test@example.com")
     user.set_password("secure_password")
@@ -111,29 +130,29 @@ class User(BaseModel):
     ```
 
     **Extending the User Model:**
-    
+
     Create custom user models by inheriting from this class:
     ```python
     from flask_more_smorest.user import User
     from flask_more_smorest.database import db
     import sqlalchemy as sa
     from sqlalchemy.orm import Mapped, mapped_column
-    
+
     class CustomUser(User):
         __tablename__ = "custom_users"  # Use different table name
-        
+
         # Add custom fields
         bio: Mapped[str] = mapped_column(db.String(500), nullable=True)
         age: Mapped[int] = mapped_column(db.Integer, nullable=True)
         phone: Mapped[str] = mapped_column(db.String(20), nullable=True)
-        
+
         # Override permission methods if needed
         def _can_write(self) -> bool:
             # Custom permission logic
             if self.age and self.age < 18:
                 return False  # Minors can't edit profiles
             return super()._can_write()
-            
+
         # Add custom methods
         @property
         def is_adult(self) -> bool:
@@ -141,10 +160,10 @@ class User(BaseModel):
     ```
 
     **Built-in Features Available to All User Models:**
-    
+
     All User models (default or custom) automatically include:
     - `roles`: Relationship to UserRole objects for permission management
-    - `settings`: Relationship to UserSetting objects for user preferences  
+    - `settings`: Relationship to UserSetting objects for user preferences
     - `tokens`: Relationship to Token objects for API authentication
     - `is_admin`/`is_superadmin`: Properties for checking admin privileges
     - `has_role()`: Method to check specific roles with optional domain scoping
@@ -152,7 +171,7 @@ class User(BaseModel):
     - Permission methods: `_can_read()`, `_can_write()`, `_can_create()`
 
     **Inheritance Without Abstract Base Class:**
-    
+
     Simply inherit from this concrete User class and add your custom fields and methods.
     """
 
@@ -163,16 +182,16 @@ class User(BaseModel):
     password: Mapped[bytes | None] = mapped_column(db.LargeBinary(128), nullable=True)
     is_enabled: Mapped[bool] = mapped_column(db.Boolean(), default=True)
 
-    # Core relationships that all User models inherit  
+    # Core relationships that all User models inherit
     # Using enable_typechecks=False to allow UserRole subclasses
     @declared_attr
     def roles(cls) -> Mapped[list["UserRole"]]:
         """Relationship to user roles - inherited by all User models."""
         return relationship(
-            "UserRole", 
-            back_populates="user", 
+            "UserRole",
+            back_populates="user",
             cascade="all, delete-orphan",
-            enable_typechecks=False  # Allow UserRole subclasses
+            enable_typechecks=False,  # Allow UserRole subclasses
         )
 
     @declared_attr
@@ -249,14 +268,14 @@ class User(BaseModel):
     def _can_write(self) -> bool:
         """Default write permission: users can edit their own profile."""
         try:
-            return self.id == get_current_user().id
+            return self.id == get_current_user_id()
         except Exception:
             return False
 
     def _can_create(self) -> bool:
         """Default create permission: admins can create users."""
         try:
-            return get_current_user().is_admin
+            return current_user.is_admin
         except Exception:
             return True  # Allow during testing/setup
 
@@ -276,29 +295,7 @@ class User(BaseModel):
         return domain_id is None or domain_id in self.domain_ids or "*" in self.domain_ids
 
 
-# Storage for the configured User model
-def get_current_user() -> "User":
-    """Get the current user from flask_jwt_extended."""
-    return jwt_current_user
-
-
-def get_current_user_id() -> uuid.UUID | None:
-    """Get current user ID."""
-    try:
-        verify_jwt_in_request()
-        return get_current_user().id
-    except exceptions.JWTDecodeError:
-        return None
-    except Exception as e:
-        logger.exception("Error getting current user ID: %s", e)
-        return None
-
-
-# Set the current_user reference to JWT current user
-current_user = jwt_current_user
-
-
-class Domain(BaseModel):
+class Domain(BasePermsModel):
     """Distinct domains within the app for multi-tenant support."""
 
     __tablename__ = "domains"
@@ -322,11 +319,11 @@ class Domain(BaseModel):
         return True
 
 
-class UserRole(BaseModel):
+class UserRole(BasePermsModel):
     """User roles with domain scoping for multi-tenant applications.
-    
+
     To use custom role enums, simply pass enum values when creating roles:
-    
+
     class CustomRole(str, enum.Enum):
         SUPERADMIN = "superadmin"
         ADMIN = "admin"
@@ -335,7 +332,7 @@ class UserRole(BaseModel):
 
     # Create roles with custom enum values
     role = UserRole(user=user, role=CustomRole.MANAGER)
-    
+
     # The role property will return the string value, which can be
     # converted back to your custom enum as needed:
     manager_role = CustomRole(role.role) if hasattr(CustomRole, role.role) else role.role
@@ -397,15 +394,14 @@ class UserRole(BaseModel):
     def _can_write(self) -> bool:
         """Permission check for modifying roles."""
         try:
-            current = get_current_user()
             # Check against default admin roles
             admin_roles = {DefaultUserRole.SUPERADMIN.value, DefaultUserRole.ADMIN.value}
-            
+
             if self._role in admin_roles:
-                return current.has_role(DefaultUserRole.SUPERADMIN)
-            return current.has_role(DefaultUserRole.ADMIN)
+                return current_user.has_role(DefaultUserRole.SUPERADMIN)
+            return current_user.has_role(DefaultUserRole.ADMIN)
         except Exception:
-            return True  # Allow for testing
+            return False
 
     def _can_create(self) -> bool:
         """Permission check for creating roles."""
@@ -419,7 +415,7 @@ class UserRole(BaseModel):
             return True
 
 
-class Token(BaseModel):
+class Token(BasePermsModel):
     """API tokens for user authentication."""
 
     __tablename__ = "tokens"
@@ -448,7 +444,7 @@ class Token(BaseModel):
         return self._can_write()
 
 
-class UserSetting(BaseModel):
+class UserSetting(BasePermsModel):
     """User-specific key-value settings storage."""
 
     __tablename__ = "user_settings"
@@ -474,52 +470,3 @@ class UserSetting(BaseModel):
     def _can_read(self) -> bool:
         """Settings can be read by their owner."""
         return self._can_write()
-
-
-# Commonly used mixins for extending User models
-class TimestampMixin:
-    """Mixin adding additional timestamp fields."""
-
-    last_login_at: Mapped[sa.DateTime | None] = mapped_column(sa.DateTime(), nullable=True)
-    email_verified_at: Mapped[sa.DateTime | None] = mapped_column(sa.DateTime(), nullable=True)
-
-
-class ProfileMixin:
-    """Mixin adding basic profile fields."""
-
-    first_name: Mapped[str | None] = mapped_column(db.String(50), nullable=True)
-    last_name: Mapped[str | None] = mapped_column(db.String(50), nullable=True)
-    display_name: Mapped[str | None] = mapped_column(db.String(100), nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(db.String(255), nullable=True)
-
-    @property
-    def full_name(self) -> str:
-        """Get formatted full name."""
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        return self.first_name or self.last_name or ""
-
-
-class SoftDeleteMixin:
-    """Mixin adding soft delete functionality."""
-
-    deleted_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
-
-    @property
-    def is_deleted(self) -> bool:
-        """Check if record is soft deleted."""
-        return self.deleted_at is not None
-
-    def soft_delete(self) -> None:
-        """Mark record as soft deleted."""
-        self.deleted_at = dt.datetime.now(dt.timezone.utc)
-        # Only set is_enabled if it exists
-        if hasattr(self, "is_enabled"):
-            self.is_enabled = False
-
-    def restore(self) -> None:
-        """Restore soft deleted record."""
-        self.deleted_at = None
-        # Only set is_enabled if it exists
-        if hasattr(self, "is_enabled"):
-            self.is_enabled = True

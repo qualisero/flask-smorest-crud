@@ -10,7 +10,7 @@ class TestCRUDBlueprint:
 
     def test_crud_blueprint_inheritance(self):
         """Test that CRUDBlueprint inherits from EnhancedBlueprint."""
-        from flask_more_smorest.enhanced_blueprint import EnhancedBlueprint
+        from flask_more_smorest.blueprint_operationid import EnhancedBlueprint
 
         assert issubclass(CRUDBlueprint, EnhancedBlueprint)
 
@@ -64,26 +64,26 @@ class TestCRUDBlueprintParameterHandling:
 
 class TestBaseModelIntegration:
     """Tests for BaseModel integration with CRUD operations."""
-    
+
     def test_basemodel_features_available(self):
         """Test that BaseModel class is available and has expected features."""
         from flask_more_smorest import BaseModel
-        
+
         # Should have basic BaseModel features
         assert BaseModel is not None
-        assert hasattr(BaseModel, '__abstract__')
+        assert hasattr(BaseModel, "__abstract__")
         assert BaseModel.__abstract__ is True
-        
+
     def test_crud_blueprint_parameters(self):
         """Test CRUD blueprint parameter validation."""
         # Test that we can create a blueprint with basic parameters
         from flask_more_smorest import CRUDBlueprint
-        
+
         # This should not raise an error for basic parameter validation
         try:
             # We can't fully instantiate without proper setup, but we can test the class exists
             assert CRUDBlueprint is not None
-            assert hasattr(CRUDBlueprint, '__init__')
+            assert hasattr(CRUDBlueprint, "__init__")
         except Exception:
             # If there are import issues, the test should still pass basic validation
             pass

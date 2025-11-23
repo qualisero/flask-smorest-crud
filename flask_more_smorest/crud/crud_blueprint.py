@@ -2,22 +2,18 @@
 
 from http import HTTPStatus
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Type, Union, TYPE_CHECKING
+from typing import Any
 
 from flask.views import MethodView
 from marshmallow_sqlalchemy.load_instance_mixin import LoadInstanceMixin
-from marshmallow import RAISE, Schema
-from sqlalchemy.orm import DeclarativeBase
+from marshmallow import RAISE
+from flask_smorest import Blueprint
 
 from .query_filtering import generate_filter_schema, get_statements_from_filters
-from .utils import convert_snake_to_camel
-from .enhanced_blueprint import EnhancedBlueprint
-
-if TYPE_CHECKING:
-    from flask import Flask
+from ..utils import convert_snake_to_camel
 
 
-class CRUDBlueprint(EnhancedBlueprint):
+class CRUDBlueprint(Blueprint):
     """Blueprint subclass that automatically registers CRUD routes.
 
     This class extends EnhancedBlueprint to provide automatic CRUD
@@ -58,12 +54,12 @@ class CRUDBlueprint(EnhancedBlueprint):
         schema_name: str = kwargs.pop("schema", model_name + "Schema")
         res_id_name: str = kwargs.pop("res_id", "id")
         res_id_param_name: str = kwargs.pop("res_id_param", f"{name.lower()}_id")
-        skip_methods: List[str] = kwargs.pop("skip_methods", [])
-        methods_raw: Union[List[str], Dict[str, Dict[str, Any]]] = kwargs.pop(
+        skip_methods: list[str] = kwargs.pop("skip_methods", [])
+        methods_raw: list[str] | dict[str, dict[str, Any]] = kwargs.pop(
             "methods", ["INDEX", "GET", "POST", "PATCH", "DELETE"]
         )
         if isinstance(methods_raw, list):
-            methods: Dict[str, Dict[str, Any]] = {m: {} for m in methods_raw}
+            methods: dict[str, dict[str, Any]] = {m: {} for m in methods_raw}
         else:
             methods = methods_raw
         for m in skip_methods:
@@ -220,3 +216,7 @@ class CRUDBlueprint(EnhancedBlueprint):
         #     GenericCRUD.put.__doc__ = f"Replace {name} resource."
 
         self.route(f"<{id_type}:{res_id_param_name}>")(GenericCRUD)
+
+    def admin_endpoint(self, func: Any) -> Any:
+        """Mark an endpoint function as admin only."""
+        raise NotImplementedError("is_admin requires using BlueprintAccessMixin.")

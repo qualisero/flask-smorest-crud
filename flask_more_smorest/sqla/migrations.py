@@ -11,8 +11,6 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from flask import Flask, current_app
 
-from .database import db
-
 
 def init_migrations(app: Flask, directory: str = "migrations") -> None:
     """Initialize Alembic migration environment for the application.

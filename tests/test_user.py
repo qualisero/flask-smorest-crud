@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch
 
-from flask_more_smorest.user import (
+from flask_more_smorest.user.models import (
     User,
     UserRole,
     UserSetting,
@@ -111,7 +111,7 @@ class TestUserHelperFunctions:
     def test_get_current_user(self):
         """Test get_current_user function."""
         # This is just a wrapper around flask_jwt_extended.current_user
-        from flask_more_smorest.user import current_user
+        from flask_more_smorest.user.models import current_user
 
         result = get_current_user()
         assert result == current_user

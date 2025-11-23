@@ -6,8 +6,7 @@ from marshmallow import Schema, fields
 import traceback
 from pprint import pformat
 
-from .database import db
-from .utils import convert_camel_to_snake
+from ..utils import convert_camel_to_snake
 
 logger = logging.getLogger(__name__)
 
@@ -79,23 +78,23 @@ class ApiException(Exception):
         return convert_camel_to_snake(cls.__name__)
 
     def get_debug_context(self, **kwargs: dict) -> dict:
-        from flask_jwt_extended import verify_jwt_in_request
-        from .user import current_user
-
         context = dict()
         context.update(kwargs)
 
-        try:
-            if verify_jwt_in_request(optional=True):
-                context["user"] = {"id": current_user.id, "roles": [r.role.name for r in current_user.roles]}
-            else:
-                context["user"] = {
-                    "id": None,
-                    "roles": None,
-                    "msg": "Current user not authenticated",
-                }
-        except Exception:
-            context["error"] = {"msg": "Error getting current user context"}
+        if True:  # TODO: check if auth is enabled
+            from perms import get_current_user_id, current_user
+
+            try:
+                if user_id := get_current_user_id():
+                    context["user"] = {"id": user_id, "roles": [r.role.name for r in current_user.roles]}
+                else:
+                    context["user"] = {
+                        "id": None,
+                        "roles": None,
+                        "msg": "Current user not authenticated",
+                    }
+            except Exception:
+                context["error"] = {"msg": "Error getting current user context"}
 
         return context
 
@@ -151,7 +150,10 @@ class ForbiddenError(ApiException):
     HTTP_STATUS_CODE = HTTPStatus.FORBIDDEN
 
     def __init__(self, message=None, **kwargs):
-        db.session.rollback()
+        from sqla import db
+
+        if db.session:
+            db.session.rollback()
         super().__init__(message, **kwargs)
 
 
