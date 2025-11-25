@@ -12,9 +12,6 @@ from flask import Flask
 
 from flask_more_smorest import BaseModel, db, init_db
 
-if TYPE_CHECKING:
-    pass
-
 
 @pytest.fixture(scope="function")
 def app() -> Flask:

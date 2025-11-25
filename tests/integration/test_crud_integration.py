@@ -75,9 +75,6 @@ def product_model(app: Flask) -> type[BaseModel]:
     return Product
 
 
-
-
-
 @pytest.fixture(scope="function")
 def product_blueprint(product_model: type[BaseModel]) -> CRUDBlueprint:
     """Create a CRUD blueprint for Product."""
