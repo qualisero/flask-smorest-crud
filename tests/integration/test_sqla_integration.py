@@ -3,6 +3,8 @@
 This module tests the BaseModel, database initialization, and migration utilities.
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 import uuid
 from datetime import datetime
@@ -10,9 +12,12 @@ from flask import Flask
 
 from flask_more_smorest import BaseModel, db, init_db
 
+if TYPE_CHECKING:
+    pass
+
 
 @pytest.fixture(scope="function")
-def app():
+def app() -> Flask:
     """Create a Flask application for testing."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -26,34 +31,28 @@ def app():
 
 
 @pytest.fixture(scope="function")
-def test_model(app):
+def test_model(app: Flask) -> type[BaseModel]:
     """Create a test model class."""
-    import time
-    import random
-
-    # Use unique table name to avoid conflicts
-    suffix = f"{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
-    table_name = f"test_items_{suffix}"
 
     class TestItem(BaseModel):
         """Test item model."""
 
-        __tablename__ = table_name
+        __table_args__ = {'extend_existing': True}
 
         name = db.Column(db.String(100), nullable=False)
         description = db.Column(db.String(500))
         count = db.Column(db.Integer, default=0)
 
-        def _can_read(self):
+        def _can_read(self) -> bool:
             """Test items are readable."""
             return True
 
-        def _can_write(self):
+        def _can_write(self) -> bool:
             """Test items are writable."""
             return True
 
         @classmethod
-        def _can_create(cls):
+        def _can_create(cls) -> bool:
             """Test items can be created."""
             return True
 
@@ -66,7 +65,7 @@ def test_model(app):
 class TestBaseModelIntegration:
     """Integration tests for BaseModel."""
 
-    def test_base_model_has_id(self, app, test_model):
+    def test_base_model_has_id(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test that BaseModel instances have UUIDs."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -77,7 +76,7 @@ class TestBaseModelIntegration:
                 assert item.id is not None
                 assert isinstance(item.id, uuid.UUID)
 
-    def test_base_model_has_timestamps(self, app, test_model):
+    def test_base_model_has_timestamps(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test that BaseModel instances have created_at and updated_at timestamps."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -90,7 +89,7 @@ class TestBaseModelIntegration:
                 assert item.updated_at is not None
                 assert isinstance(item.updated_at, datetime)
 
-    def test_base_model_save_method(self, app, test_model):
+    def test_base_model_save_method(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test the save convenience method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -103,7 +102,7 @@ class TestBaseModelIntegration:
                 assert retrieved is not None
                 assert retrieved.name == "Test Item"
 
-    def test_base_model_update_method(self, app, test_model):
+    def test_base_model_update_method(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test the update convenience method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -119,7 +118,7 @@ class TestBaseModelIntegration:
                 # updated_at should be newer
                 assert item.updated_at >= original_updated_at
 
-    def test_base_model_delete_method(self, app, test_model):
+    def test_base_model_delete_method(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test the delete method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -134,7 +133,7 @@ class TestBaseModelIntegration:
                 retrieved = db.session.get(test_model, item_id)
                 assert retrieved is None
 
-    def test_base_model_get_method(self, app, test_model):
+    def test_base_model_get_method(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test the get class method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -148,7 +147,7 @@ class TestBaseModelIntegration:
                 assert retrieved.id == item_id
                 assert retrieved.name == "Test Item"
 
-    def test_base_model_get_or_404_success(self, app, test_model):
+    def test_base_model_get_or_404_success(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test get_or_404 with existing item."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -160,7 +159,7 @@ class TestBaseModelIntegration:
                 retrieved = test_model.get_or_404(item_id)
                 assert retrieved.id == item_id
 
-    def test_base_model_get_or_404_not_found(self, app, test_model):
+    def test_base_model_get_or_404_not_found(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test get_or_404 with non-existent item."""
         from flask_more_smorest.error.exceptions import NotFoundError
 
@@ -172,7 +171,7 @@ class TestBaseModelIntegration:
                 with pytest.raises(NotFoundError):
                     test_model.get_or_404(non_existent_id)
 
-    def test_base_model_get_by_method(self, app, test_model):
+    def test_base_model_get_by_method(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test the get_by method for filtering."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -191,7 +190,7 @@ class TestBaseModelIntegration:
                 assert result is not None
                 assert result.name == "Item Two"
 
-    def test_base_model_get_by_or_404(self, app, test_model):
+    def test_base_model_get_by_or_404(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test get_by_or_404 method."""
         from flask_more_smorest.error.exceptions import NotFoundError
 
@@ -208,7 +207,7 @@ class TestBaseModelIntegration:
                 with pytest.raises(NotFoundError):
                     test_model.get_by_or_404(name="Non-existent")
 
-    def test_base_model_schema_generation(self, app, test_model):
+    def test_base_model_schema_generation(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test that BaseModel generates a Schema class."""
         with app.app_context():
             schema_class = test_model.Schema
@@ -221,7 +220,7 @@ class TestBaseModelIntegration:
             assert "name" in schema.fields
             assert "is_writable" in schema.fields
 
-    def test_base_model_bypass_perms_context(self, app, test_model):
+    def test_base_model_bypass_perms_context(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test bypass_perms context manager."""
         with app.app_context():
             # Within bypass_perms context, permissions should be bypassed
@@ -237,7 +236,7 @@ class TestBaseModelIntegration:
 class TestDatabaseInitialization:
     """Tests for database initialization."""
 
-    def test_init_db_creates_tables(self):
+    def test_init_db_creates_tables(self) -> None:
         """Test that init_db creates database tables."""
         app = Flask(__name__)
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
@@ -251,13 +250,13 @@ class TestDatabaseInitialization:
             # No exception means success
             assert True
 
-    def test_db_is_flask_sqlalchemy_instance(self, app):
+    def test_db_is_flask_sqlalchemy_instance(self, app: Flask) -> None:
         """Test that db is a Flask-SQLAlchemy instance."""
         from flask_sqlalchemy import SQLAlchemy
         
         assert isinstance(db, SQLAlchemy)
 
-    def test_multiple_models_can_be_created(self, app):
+    def test_multiple_models_can_be_created(self, app: Flask) -> None:
         """Test creating multiple model classes."""
         
         class Model1(BaseModel):
@@ -306,7 +305,7 @@ class TestDatabaseInitialization:
 class TestBaseModelPermissions:
     """Tests for BaseModel permission system."""
 
-    def test_permission_methods_exist(self, test_model):
+    def test_permission_methods_exist(self, test_model: type[BaseModel]) -> None:
         """Test that permission methods are defined."""
         assert hasattr(test_model, "_can_read")
         assert hasattr(test_model, "_can_write")
@@ -315,12 +314,12 @@ class TestBaseModelPermissions:
         assert hasattr(test_model, "can_write")
         assert hasattr(test_model, "can_create")
 
-    def test_bypass_perms_classmethod_exists(self, test_model):
+    def test_bypass_perms_classmethod_exists(self, test_model: type[BaseModel]) -> None:
         """Test that bypass_perms is available."""
         assert hasattr(test_model, "bypass_perms")
         assert callable(test_model.bypass_perms)
 
-    def test_is_writable_field_in_schema(self, app, test_model):
+    def test_is_writable_field_in_schema(self, app: Flask, test_model: type[BaseModel]) -> None:
         """Test that is_writable field is included in schema."""
         with app.app_context():
             with test_model.bypass_perms():

@@ -4,29 +4,27 @@ This test demonstrates a complete Flask app configuration using all major featur
 of flask-more-smorest together, showing how streamlined and simple the setup can be.
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 import uuid
 from flask import Flask
 from flask_smorest import Api
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from marshmallow import fields
 
 from flask_more_smorest import (
     CRUDBlueprint,
     BaseModel,
     db,
     init_db,
-    User,
-    UserRole,
-    DefaultUserRole,
     TimestampMixin,
-    ProfileMixin,
-    generate_filter_schema,
 )
+
+if TYPE_CHECKING:
+    from flask.testing import FlaskClient
 
 
 @pytest.fixture(scope="function")
-def maximal_app():
+def maximal_app() -> Flask:
     """Create a Flask app with maximal feature usage.
     
     This app demonstrates:
@@ -55,26 +53,19 @@ def maximal_app():
 
 
 @pytest.fixture(scope="function")
-def api(maximal_app):
+def api(maximal_app: Flask) -> Api:
     """Create API instance."""
     return Api(maximal_app)
 
 
 @pytest.fixture(scope="function")
-def article_model(maximal_app):
+def article_model(maximal_app: Flask) -> type[BaseModel]:
     """Create an Article model with mixins and relationships."""
-    import time
-    import random
-
-    # Use unique table name and backref to avoid conflicts
-    suffix = f"{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
-    table_name = f"articles_{suffix}"
-    backref_name = f"articles_{suffix}"
 
     class Article(BaseModel, TimestampMixin):
         """Article model demonstrating multiple features."""
 
-        __tablename__ = table_name
+        __table_args__ = {'extend_existing': True}
 
         title = db.Column(db.String(200), nullable=False)
         content = db.Column(db.Text, nullable=False)
@@ -82,21 +73,21 @@ def article_model(maximal_app):
         published = db.Column(db.Boolean, default=False)
         view_count = db.Column(db.Integer, default=0)
 
-        # Relationship to User with unique backref
-        author = db.relationship("User", backref=backref_name, foreign_keys=[author_id])
+        # Relationship to User - no backref needed as we test in isolation
+        author = db.relationship("User", foreign_keys=[author_id])
 
-        def _can_read(self):
+        def _can_read(self) -> bool:
             """Published articles can be read by anyone."""
             return self.published or self._can_write()
 
-        def _can_write(self):
+        def _can_write(self) -> bool:
             """Only the author can write."""
             from flask_more_smorest import get_current_user_id
             current_user_id = get_current_user_id()
             return current_user_id == self.author_id if current_user_id else True
 
         @classmethod
-        def _can_create(cls):
+        def _can_create(cls) -> bool:
             """Anyone can create articles for this demo."""
             return True
 
@@ -107,62 +98,35 @@ def article_model(maximal_app):
 
 
 @pytest.fixture(scope="function")
-def article_schema(article_model):
-    """Create Article schema using SQLAlchemyAutoSchema."""
-
-    class ArticleSchema(SQLAlchemyAutoSchema):
-        """Auto-generated schema for Article."""
-
-        class Meta:
-            model = article_model
-            load_instance = True
-            include_fk = True
-            include_relationships = True
-            sqla_session = db.session
-
-        # Add custom fields or override as needed
-        view_count = fields.Integer(dump_only=True)
-
-    return ArticleSchema
-
-
-@pytest.fixture(scope="function")
-def comment_model(maximal_app, article_model):
+def comment_model(maximal_app: Flask, article_model: type[BaseModel]) -> type[BaseModel]:
     """Create a Comment model to demonstrate relationships."""
-    import time
-    import random
-
-    # Use unique table name and backref to avoid conflicts
-    suffix = f"{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
-    table_name = f"comments_{suffix}"
     articles_table = article_model.__tablename__
-    backref_name = f"comments_{suffix}"
 
     class Comment(BaseModel, TimestampMixin):
         """Comment model for articles."""
 
-        __tablename__ = table_name
+        __table_args__ = {'extend_existing': True}
 
         content = db.Column(db.Text, nullable=False)
         article_id = db.Column(db.UUID, db.ForeignKey(f"{articles_table}.id"), nullable=False)
         author_id = db.Column(db.UUID, db.ForeignKey("users.id"), nullable=True)
 
-        # Relationships with unique backrefs
-        article = db.relationship(article_model, backref=backref_name, foreign_keys=[article_id])
-        author = db.relationship("User", backref=f"user_{backref_name}", foreign_keys=[author_id])
+        # Relationships - no backref needed for testing
+        article = db.relationship(article_model, foreign_keys=[article_id])
+        author = db.relationship("User", foreign_keys=[author_id])
 
-        def _can_read(self):
+        def _can_read(self) -> bool:
             """Comments are readable if article is readable."""
             return self.article._can_read() if self.article else True
 
-        def _can_write(self):
+        def _can_write(self) -> bool:
             """Only the comment author can edit."""
             from flask_more_smorest import get_current_user_id
             current_user_id = get_current_user_id()
             return current_user_id == self.author_id if current_user_id else True
 
         @classmethod
-        def _can_create(cls):
+        def _can_create(cls) -> bool:
             """Anyone can create comments for this demo."""
             return True
 
@@ -173,24 +137,7 @@ def comment_model(maximal_app, article_model):
 
 
 @pytest.fixture(scope="function")
-def comment_schema(comment_model):
-    """Create Comment schema."""
-
-    class CommentSchema(SQLAlchemyAutoSchema):
-        """Auto-generated schema for Comment."""
-
-        class Meta:
-            model = comment_model
-            load_instance = True
-            include_fk = True
-            include_relationships = True
-            sqla_session = db.session
-
-    return CommentSchema
-
-
-@pytest.fixture(scope="function")
-def blueprints(article_model, article_schema, comment_model, comment_schema):
+def blueprints(article_model: type[BaseModel], comment_model: type[BaseModel]) -> dict[str, CRUDBlueprint]:
     """Create CRUD blueprints for all models."""
     import sys
     import types
@@ -198,20 +145,19 @@ def blueprints(article_model, article_schema, comment_model, comment_schema):
     # Create mock modules for blueprint imports
     articles_module = types.ModuleType("mock_articles")
     articles_module.Article = article_model
-    articles_module.ArticleSchema = article_schema
+    articles_module.ArticleSchema = article_model.Schema
     sys.modules["mock_articles"] = articles_module
 
     comments_module = types.ModuleType("mock_comments")
     comments_module.Comment = comment_model
-    comments_module.CommentSchema = comment_schema
+    comments_module.CommentSchema = comment_model.Schema
     sys.modules["mock_comments"] = comments_module
 
-    # Create blueprints
+    # Create blueprints - use defaults where possible
     articles_bp = CRUDBlueprint(
         "articles",
         __name__,
         model="Article",
-        schema="ArticleSchema",
         model_import_name="mock_articles",
         schema_import_name="mock_articles",
         url_prefix="/api/articles",
@@ -221,7 +167,6 @@ def blueprints(article_model, article_schema, comment_model, comment_schema):
         "comments",
         __name__,
         model="Comment",
-        schema="CommentSchema",
         model_import_name="mock_comments",
         schema_import_name="mock_comments",
         url_prefix="/api/comments",
@@ -237,7 +182,7 @@ def blueprints(article_model, article_schema, comment_model, comment_schema):
 
 
 @pytest.fixture
-def client(maximal_app, api, blueprints):
+def client(maximal_app: Flask, api: Api, blueprints: dict[str, CRUDBlueprint]) -> "FlaskClient":
     """Create test client with all blueprints registered."""
     api.register_blueprint(blueprints["articles"])
     api.register_blueprint(blueprints["comments"])
@@ -247,7 +192,9 @@ def client(maximal_app, api, blueprints):
 class TestMaximalFeatureIntegration:
     """Integration tests demonstrating maximal feature usage."""
 
-    def test_complete_article_lifecycle(self, client, maximal_app, article_model):
+    def test_complete_article_lifecycle(
+        self, client: "FlaskClient", maximal_app: Flask, article_model: type[BaseModel]
+    ) -> None:
         """Test complete CRUD lifecycle for articles."""
         with maximal_app.app_context():
             with article_model.bypass_perms():
@@ -290,7 +237,9 @@ class TestMaximalFeatureIntegration:
                 response = client.delete(f"/api/articles/{article_id}")
                 assert response.status_code in [200, 204]
 
-    def test_filtering_articles(self, client, maximal_app, article_model):
+    def test_filtering_articles(
+        self, client: "FlaskClient", maximal_app: Flask, article_model: type[BaseModel]
+    ) -> None:
         """Test filtering functionality on articles."""
         with maximal_app.app_context():
             with article_model.bypass_perms():
@@ -313,7 +262,9 @@ class TestMaximalFeatureIntegration:
                 assert len(articles) == 2
                 assert all(a["published"] is True for a in articles)
 
-    def test_related_models(self, maximal_app, article_model, comment_model):
+    def test_related_models(
+        self, maximal_app: Flask, article_model: type[BaseModel], comment_model: type[BaseModel]
+    ) -> None:
         """Test relationships between articles and comments."""
         with maximal_app.app_context():
             with article_model.bypass_perms(), comment_model.bypass_perms():
@@ -340,7 +291,7 @@ class TestMaximalFeatureIntegration:
                 assert comments[0].article_id == article_id
                 assert comments[1].article_id == article_id
 
-    def test_permissions_on_models(self, maximal_app, article_model):
+    def test_permissions_on_models(self, maximal_app: Flask, article_model: type[BaseModel]) -> None:
         """Test permission system on models."""
         with maximal_app.app_context():
             with article_model.bypass_perms():
@@ -363,7 +314,7 @@ class TestMaximalFeatureIntegration:
                 # In this case, since we're in bypass_perms, it should be readable
                 assert draft_article._can_read() is not None
 
-    def test_auto_generated_schema_fields(self, maximal_app, article_model):
+    def test_auto_generated_schema_fields(self, maximal_app: Flask, article_model: type[BaseModel]) -> None:
         """Test that auto-generated schemas include all expected fields."""
         with maximal_app.app_context():
             schema = article_model.Schema()
@@ -380,7 +331,7 @@ class TestMaximalFeatureIntegration:
             assert "published" in schema.fields
             assert "view_count" in schema.fields
 
-    def test_timestamps_are_automatic(self, maximal_app, article_model):
+    def test_timestamps_are_automatic(self, maximal_app: Flask, article_model: type[BaseModel]) -> None:
         """Test that timestamps are automatically set and updated."""
         with maximal_app.app_context():
             with article_model.bypass_perms():
@@ -408,7 +359,7 @@ class TestMaximalFeatureIntegration:
             response = client.get("/api/comments")
             assert response.status_code == 200
 
-    def test_uuid_primary_keys(self, maximal_app, article_model):
+    def test_uuid_primary_keys(self, maximal_app: Flask, article_model: type[BaseModel]) -> None:
         """Test that models use UUID primary keys."""
         with maximal_app.app_context():
             with article_model.bypass_perms():
@@ -419,7 +370,7 @@ class TestMaximalFeatureIntegration:
                 assert article.id is not None
                 assert isinstance(article.id, uuid.UUID)
 
-    def test_model_convenience_methods(self, maximal_app, article_model):
+    def test_model_convenience_methods(self, maximal_app: Flask, article_model: type[BaseModel]) -> None:
         """Test BaseModel convenience methods (get, get_or_404, etc.)."""
         with maximal_app.app_context():
             with article_model.bypass_perms():

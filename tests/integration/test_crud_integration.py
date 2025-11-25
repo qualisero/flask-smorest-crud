@@ -4,18 +4,21 @@ This module tests the complete CRUD blueprint functionality with a real Flask ap
 using up-to-date features from flask-smorest, SQLAlchemy, and marshmallow_sqlalchemy.
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 import uuid
 from flask import Flask
 from flask_smorest import Api
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from marshmallow import fields
 
 from flask_more_smorest import CRUDBlueprint, BaseModel, db, init_db
 
+if TYPE_CHECKING:
+    from flask.testing import FlaskClient
+
 
 @pytest.fixture(scope="function")
-def app():
+def app() -> Flask:
     """Create a Flask application for testing."""
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -33,41 +36,36 @@ def app():
 
 
 @pytest.fixture(scope="function")
-def api(app):
+def api(app: Flask) -> Api:
     """Create API instance."""
     return Api(app)
 
 
-@pytest.fixture(scope="function")
-def product_model(app):
-    """Create a Product model for testing."""
-    import time
-    import random
 
-    # Use unique table name to avoid conflicts
-    suffix = f"{int(time.time() * 1000000)}_{random.randint(1000, 9999)}"
-    table_name = f"products_{suffix}"
+@pytest.fixture(scope="function")
+def product_model(app: Flask) -> type[BaseModel]:
+    """Create a Product model for testing."""
 
     class Product(BaseModel):
         """Product model for testing CRUD operations."""
 
-        __tablename__ = table_name
+        __table_args__ = {'extend_existing': True}
 
         name = db.Column(db.String(100), nullable=False)
         description = db.Column(db.String(500))
         price = db.Column(db.Float, nullable=False)
         in_stock = db.Column(db.Boolean, default=True)
 
-        def _can_read(self):
+        def _can_read(self) -> bool:
             """Products are readable by anyone."""
             return True
 
-        def _can_write(self):
+        def _can_write(self) -> bool:
             """Products are writable by anyone for testing."""
             return True
 
         @classmethod
-        def _can_create(cls):
+        def _can_create(cls) -> bool:
             """Products can be created by anyone for testing."""
             return True
 
@@ -77,25 +75,11 @@ def product_model(app):
     return Product
 
 
-@pytest.fixture(scope="function")
-def product_schema(product_model):
-    """Create a Product schema using SQLAlchemyAutoSchema."""
 
-    class ProductSchema(SQLAlchemyAutoSchema):
-        """Auto-generated schema for Product model."""
-
-        class Meta:
-            model = product_model
-            load_instance = True
-            include_fk = True
-            include_relationships = True
-            sqla_session = db.session
-
-    return ProductSchema
 
 
 @pytest.fixture(scope="function")
-def product_blueprint(product_model, product_schema):
+def product_blueprint(product_model: type[BaseModel]) -> CRUDBlueprint:
     """Create a CRUD blueprint for Product."""
     # We need to set up a mock module for the blueprint to import from
     import sys
@@ -104,7 +88,7 @@ def product_blueprint(product_model, product_schema):
     # Create a mock module
     mock_module = types.ModuleType("mock_models")
     mock_module.Product = product_model
-    mock_module.ProductSchema = product_schema
+    mock_module.ProductSchema = product_model.Schema
     sys.modules["mock_models"] = mock_module
 
     try:
@@ -112,7 +96,6 @@ def product_blueprint(product_model, product_schema):
             "products",
             __name__,
             model="Product",
-            schema="ProductSchema",
             model_import_name="mock_models",
             schema_import_name="mock_models",
             url_prefix="/api/products",
@@ -125,7 +108,7 @@ def product_blueprint(product_model, product_schema):
 
 
 @pytest.fixture
-def client(app, api, product_blueprint):
+def client(app: Flask, api: Api, product_blueprint: CRUDBlueprint) -> "FlaskClient":
     """Create test client with registered blueprint."""
     api.register_blueprint(product_blueprint)
     return app.test_client()
@@ -134,7 +117,7 @@ def client(app, api, product_blueprint):
 class TestCRUDIntegration:
     """Integration tests for CRUD operations."""
 
-    def test_list_products_empty(self, client, app):
+    def test_list_products_empty(self, client: "FlaskClient", app: Flask) -> None:
         """Test listing products when database is empty."""
         with app.app_context():
             response = client.get("/api/products")
@@ -143,7 +126,7 @@ class TestCRUDIntegration:
             assert isinstance(data, list)
             assert len(data) == 0
 
-    def test_create_product(self, client, app, product_model):
+    def test_create_product(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test creating a new product."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -166,7 +149,7 @@ class TestCRUDIntegration:
                 # ID is returned as string
                 assert isinstance(data["id"], str)
 
-    def test_get_product(self, client, app, product_model):
+    def test_get_product(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test retrieving a specific product."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -191,7 +174,7 @@ class TestCRUDIntegration:
                 assert data["name"] == "Test Product"
                 assert data["price"] == 29.99
 
-    def test_update_product(self, client, app, product_model):
+    def test_update_product(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test updating a product."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -218,7 +201,7 @@ class TestCRUDIntegration:
                 # Name should remain unchanged
                 assert data["name"] == "Test Product"
 
-    def test_delete_product(self, client, app, product_model):
+    def test_delete_product(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test deleting a product."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -241,7 +224,7 @@ class TestCRUDIntegration:
                 deleted_product = db.session.get(product_model, uuid.UUID(product_id))
                 assert deleted_product is None
 
-    def test_list_multiple_products(self, client, app, product_model):
+    def test_list_multiple_products(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test listing multiple products."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -265,7 +248,7 @@ class TestCRUDIntegration:
                 assert isinstance(data, list)
                 assert len(data) == 3
 
-    def test_filter_products(self, client, app, product_model):
+    def test_filter_products(self, client: "FlaskClient", app: Flask, product_model: type[BaseModel]) -> None:
         """Test filtering products."""
         with app.app_context():
             with product_model.bypass_perms():
@@ -289,7 +272,7 @@ class TestCRUDIntegration:
                 assert len(data) == 2
                 assert all(p["in_stock"] is True for p in data)
 
-    def test_create_product_validation_error(self, client, app):
+    def test_create_product_validation_error(self, client: "FlaskClient", app: Flask) -> None:
         """Test creating a product with validation errors."""
         with app.app_context():
             # Missing required fields
