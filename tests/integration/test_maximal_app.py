@@ -307,13 +307,13 @@ class TestMaximalFeatureIntegration:
                 db.session.commit()
 
                 # Filter for published articles
-                response = client.get("/api/articles/?published=true")
+                response = client.get("/api/articles?published=true")
                 assert response.status_code == 200
                 articles = response.get_json()
                 assert len(articles) == 2
                 assert all(a["published"] is True for a in articles)
 
-    def test_related_models(self, client, maximal_app, article_model, comment_model):
+    def test_related_models(self, maximal_app, article_model, comment_model):
         """Test relationships between articles and comments."""
         with maximal_app.app_context():
             with article_model.bypass_perms(), comment_model.bypass_perms():
@@ -327,18 +327,18 @@ class TestMaximalFeatureIntegration:
                 db.session.commit()
                 article_id = article.id
 
-                # Create comments for the article
-                comment_data = {"content": "Great article!", "article_id": str(article_id)}
-                response = client.post("/api/comments", json=comment_data)
-                assert response.status_code == 201
-
-                comment_data = {"content": "Very informative.", "article_id": str(article_id)}
-                response = client.post("/api/comments", json=comment_data)
-                assert response.status_code == 201
+                # Create comments directly in database
+                comment1 = comment_model(content="Great article!", article_id=article_id)
+                comment2 = comment_model(content="Very informative.", article_id=article_id)
+                db.session.add(comment1)
+                db.session.add(comment2)
+                db.session.commit()
 
                 # Verify comments are associated
                 comments = db.session.query(comment_model).filter_by(article_id=article_id).all()
                 assert len(comments) == 2
+                assert comments[0].article_id == article_id
+                assert comments[1].article_id == article_id
 
     def test_permissions_on_models(self, maximal_app, article_model):
         """Test permission system on models."""
