@@ -1,18 +1,17 @@
 """Test configuration and fixtures for flask-more-smorest tests."""
 
 from typing import TYPE_CHECKING
+
 import pytest
 from flask import Flask
 from flask_smorest import Api
+from marshmallow import Schema
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from marshmallow import Schema, fields
-from datetime import datetime
-import uuid
 
-from flask_more_smorest.sqla import db, BaseModel
+from flask_more_smorest.sqla import BaseModel, db
 
 if TYPE_CHECKING:
-    from flask.testing import FlaskClient
+    from flask.testing import FlaskClient, FlaskCliRunner
 
 
 @pytest.fixture(scope="function")
@@ -137,7 +136,7 @@ def client(app: Flask) -> "FlaskClient":
 
 
 @pytest.fixture
-def runner(app: Flask):
+def runner(app: Flask) -> "FlaskCliRunner":
     """Create a test CLI runner.
 
     Args:

@@ -24,7 +24,7 @@ class Base(DeclarativeBase):
 
 
 # Main database instance
-db = SQLAlchemy(model_class=Base)
+db: SQLAlchemy = SQLAlchemy(model_class=Base)
 
 
 def init_db(app: "Flask") -> None:

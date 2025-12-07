@@ -13,7 +13,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
-    from .user_models import User, current_user, get_current_user_id
+    from .user_models import User, current_user
 
 
 class HasUserMixin:
@@ -36,6 +36,8 @@ class HasUserMixin:
         Returns:
             Mapped UUID column with foreign key to users table
         """
+        from .user_models import get_current_user_id
+
         return mapped_column(
             sa.Uuid(as_uuid=True),
             sa.ForeignKey("user.id", ondelete="CASCADE"),

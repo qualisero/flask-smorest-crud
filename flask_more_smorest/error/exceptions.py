@@ -22,34 +22,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ApiErrorDebugSchema(Schema):
-    message = fields.String(required=True)
-    traceback = fields.List(fields.String)
-    context = fields.Dict()
+# class ApiErrorDebugSchema(Schema):
+#     message = fields.String(required=True)
+#     traceback = fields.List(fields.String)
+#     debug_context = fields.Dict()
 
 
-class ApiErrorResponseSchema(Schema):
-    title = fields.String(required=True)
-    status_code = fields.Integer(required=True)
-    error_code = fields.String(required=True)
-    details = fields.Dict(dump_default={})
-    debug = fields.Nested(ApiErrorDebugSchema, required=True)
+# class ApiErrorResponseSchema(Schema):
+#     title = fields.String(required=True)
+#     status_code = fields.Integer(required=True)
+#     error_code = fields.String(required=True)
+#     details = fields.Dict(dump_default={})
+#     debug = fields.Nested(ApiErrorDebugSchema, required=True)
 
 
-class UnprocessableEntityError(Schema):
-    """Schema for unprocessable entity errors."""
+# class UnprocessableEntityError(Schema):
+#     """Schema for unprocessable entity errors."""
 
-    json = fields.Dict(required=False)
-    file = fields.Dict(required=False)
-    query = fields.Dict(required=False)
+#     json = fields.Dict(required=False)
+#     file = fields.Dict(required=False)
+#     query = fields.Dict(required=False)
 
 
-class UnprocessableEntitySchema(Schema):
-    """Schema for unprocessable entity exception."""
+# class UnprocessableEntitySchema(Schema):
+#     """Schema for unprocessable entity exception."""
 
-    message = fields.String(required=True)
-    errors = fields.Nested(UnprocessableEntityError, required=True)
-    valid_data = fields.Dict(required=False)
+#     message = fields.String(required=True)
+#     errors = fields.Nested(UnprocessableEntityError, required=True)
+#     valid_data = fields.Dict(required=False)
 
 
 class ApiException(Exception):
@@ -64,7 +64,7 @@ class ApiException(Exception):
         MESSAGE_PREFIX: Prefix for error messages (default: "")
         HTTP_STATUS_CODE: HTTP status code for the error (default: 500)
         INCLUDE_TRACEBACK: Whether to include traceback in response (default: True)
-        context: Additional context information for debugging
+        debug_context: Additional context information for debugging
 
     Example:
         >>> class MyCustomError(ApiException):
@@ -78,12 +78,11 @@ class ApiException(Exception):
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
     # TODO: set to False in production
     INCLUDE_TRACEBACK = True
-    context: dict[str, str | int | bool | dict | None] = {}
+    debug_context: dict[str, str | int | bool | dict | None] = {}
 
     def __init__(
         self,
         message: str | None = None,
-        exc: Exception | None = None,
         **kwargs: str | int | bool | None,
     ) -> None:
         """Initialize the API exception.
@@ -94,7 +93,7 @@ class ApiException(Exception):
             **kwargs: Additional context information
         """
         self.custom_args: dict[str, str | int | bool | None] = {}
-        self.context = self.get_debug_context(**kwargs)
+        self.debug_context = self.get_debug_context(**kwargs)
 
         if message is None:
             if self.MESSAGE_PREFIX:
@@ -129,25 +128,25 @@ class ApiException(Exception):
         Returns:
             Dictionary containing debug context including user information
         """
-        context: dict[str, str | int | bool | dict | None] = dict()
-        context.update(kwargs)
+        debug_context: dict[str, str | int | bool | dict | None] = dict()
+        debug_context.update(kwargs)
 
         if True:  # TODO: check if auth is enabled
             from ..perms import current_user, get_current_user_id
 
             try:
                 if user_id := get_current_user_id():
-                    context["user"] = {"id": user_id, "roles": [r.role for r in current_user.roles]}
+                    debug_context["user"] = {"id": user_id, "roles": [r.role for r in current_user.roles]}
                 else:
-                    context["user"] = {
+                    debug_context["user"] = {
                         "id": None,
                         "roles": None,
                         "msg": "Current user not authenticated",
                     }
             except Exception:
-                context["error"] = {"msg": "Error getting current user context"}
+                debug_context["error"] = {"msg": "Error getting current user context"}
 
-        return context
+        return debug_context
 
     def make_error_response(self) -> "Response":
         """Create a Flask response object for this error.
@@ -164,7 +163,7 @@ class ApiException(Exception):
             "debug": {
                 "message": self.message,
                 # TODO hide traceback on production?
-                "context": self.context,
+                "debug_context": self.debug_context,
             },
         }
 
@@ -172,9 +171,10 @@ class ApiException(Exception):
             exc = sys.exception()
             if exc is not None:
                 formatted_tb: list[str] = traceback.format_list(traceback.extract_tb(exc.__traceback__))
-                error["debug"]["traceback"] = formatted_tb
+                if isinstance(error["debug_context"], dict):
+                    error["debug_context"]["traceback"] = formatted_tb
 
-        response_obj: dict[str, dict] = {"error": ApiErrorResponseSchema().dump(error)}
+        response_obj: dict[str, dict] = {"error": error}
 
         return make_response(response_obj, self.HTTP_STATUS_CODE)
 
@@ -187,11 +187,11 @@ class ApiException(Exception):
                 msg += f"\n{pformat(self.custom_args)}"
 
             if self.HTTP_STATUS_CODE >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                logger.critical(msg, extra=self.context, exc_info=True)
+                logger.critical(msg, extra=self.debug_context, exc_info=True)
             elif self.HTTP_STATUS_CODE >= HTTPStatus.BAD_REQUEST:
-                logger.warning(msg, extra=self.context)
+                logger.warning(msg, extra=self.debug_context)
             else:
-                logger.info(msg, extra=self.context)
+                logger.info(msg, extra=self.debug_context)
         except Exception as e:
             logger.critical(f"Error logging exception: {e}", exc_info=True)
 
@@ -214,7 +214,7 @@ class ForbiddenError(ApiException):
 
         Args:
             message: Error message
-            **kwargs: Additional context information
+            **kwargs: Additional debug_context information
         """
         from ..sqla import db
 
@@ -275,7 +275,7 @@ class UnprocessableEntity(ApiException):
             location: Where the error occurred (default: "json")
             message: Overall error message (default: "Invalid input data")
             valid_data: Data that passed validation
-            **kwargs: Additional context information
+            **kwargs: Additional debug_context information
         """
         self.fields = fields
         self.location = location
@@ -293,9 +293,9 @@ class UnprocessableEntity(ApiException):
         data: dict[str, str | dict] = {
             "message": self.message,
             "errors": {self.location: {f: [v] for f, v in self.fields.items()}},
-            "valid_data": self.valid_data,
+            # "valid_data": self.valid_data,
         }
-        response_obj: dict[str, str | dict] = UnprocessableEntitySchema().dump(data)
+        response_obj: dict[str, str | dict] = data
         return make_response(response_obj, self.HTTP_STATUS_CODE)
 
 
@@ -305,23 +305,23 @@ class InternalServerError(ApiException):
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
 
     def get_debug_context(self, **kwargs: str | int | bool | None) -> dict[str, str | int | bool | dict | None]:
-        """Get debugging context including exception information.
+        """Get debugging debug_context including exception information.
 
         Args:
-            **kwargs: Additional context information
+            **kwargs: Additional debug_context information
 
         Returns:
-            Dictionary with base context plus exception details
+            Dictionary with base debug_context plus exception details
         """
-        context = super().get_debug_context(**kwargs)
+        debug_context = super().get_debug_context(**kwargs)
 
         exc_type, exc_value, _exc_traceback = sys.exc_info()
-        context["exception"] = {
+        debug_context["exception"] = {
             "type": str(exc_type),
             "value": str(exc_value),
             # "traceback": exc_traceback,
         }
-        return context
+        return debug_context
 
 
 class DBError(InternalServerError):
