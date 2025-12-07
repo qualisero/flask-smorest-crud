@@ -7,7 +7,6 @@ filter parameters into SQLAlchemy query statements. It supports:
 - Enum list filters (field__in)
 """
 
-import datetime as dt
 from typing import TYPE_CHECKING, Mapping
 
 import marshmallow as ma
