@@ -33,7 +33,7 @@ class PermsBlueprintMixin:
         view_cls: type[MethodView],
         method_name: str,
         docstring: str,
-        method_config: dict[str, Schema | str | bool],
+        method_config: dict[str, Schema | str | bool | object],
     ) -> None:
         """Configure endpoint admin decorator if needed.
 
@@ -48,14 +48,14 @@ class PermsBlueprintMixin:
             method = getattr(view_cls, method_name)
             self.admin_endpoint(method)
 
-    def public_endpoint(self, function: Callable) -> Callable:
+    def public_endpoint(self, func: Callable) -> Callable:
         """Decorator to mark an endpoint as public.
 
         Public endpoints do not require authentication and can be
         accessed by anyone.
 
         Args:
-            function: The endpoint function to mark as public
+            func: The endpoint function to mark as public
 
         Returns:
             The decorated function with public annotation
@@ -66,12 +66,12 @@ class PermsBlueprintMixin:
             >>> def health_check():
             ...     return {'status': 'ok'}
         """
-        function._is_public = True
-        if function.__doc__ is None:
-            function.__doc__ = "Public endpoint"
+        setattr(func, "_is_public", True)
+        if func.__doc__ is None:
+            func.__doc__ = "Public endpoint"
         else:
-            function.__doc__ += " | 🌐 Public"
-        return function
+            func.__doc__ += " | 🌐 Public"
+        return func
 
     def admin_endpoint(self, func: Callable) -> Callable:
         """Decorator to mark an endpoint as admin only.
@@ -92,7 +92,7 @@ class PermsBlueprintMixin:
             ...     # Only admins can delete users
             ...     pass
         """
-        func._is_admin = True
+        setattr(func, "_is_admin", True)
         if func.__doc__ is None:
             func.__doc__ = "Admin only endpoint"
         else:

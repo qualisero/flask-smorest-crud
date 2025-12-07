@@ -11,7 +11,7 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from flask_more_smorest.sqla import BaseModel, db
 
 if TYPE_CHECKING:
-    from flask.testing import FlaskClient
+    from flask.testing import FlaskClient, FlaskCliRunner
 
 
 @pytest.fixture(scope="function")
@@ -136,7 +136,7 @@ def client(app: Flask) -> "FlaskClient":
 
 
 @pytest.fixture
-def runner(app: Flask):
+def runner(app: Flask) -> "FlaskCliRunner":
     """Create a test CLI runner.
 
     Args:

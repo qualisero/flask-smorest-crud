@@ -63,7 +63,7 @@ import enum
 import logging
 import os
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import sqlalchemy as sa
 from flask_jwt_extended import current_user as jwt_current_user
@@ -186,8 +186,6 @@ class User(BasePermsModel):
     Simply inherit from this concrete User class and add your custom fields and methods.
     """
 
-    __tablename__ = "users"
-
     # Core authentication fields that all User models must have
     email: Mapped[str] = mapped_column(db.String(128), unique=True, nullable=False)
     password: Mapped[bytes | None] = mapped_column(db.LargeBinary(128), nullable=True)
@@ -215,7 +213,7 @@ class User(BasePermsModel):
         """Relationship to user tokens - inherited by all User models."""
         return relationship("Token", back_populates="user", cascade="all, delete-orphan")
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: object):
         """Create new user with optional password hashing."""
         password = kwargs.pop("password", None)
         super().__init__(**kwargs)
@@ -234,7 +232,7 @@ class User(BasePermsModel):
             return False
         return isinstance(password, str) and check_password_hash(password=password, hashed=self.password)
 
-    def update(self, commit: bool = True, force: bool = False, **kwargs) -> "User":
+    def update(self, commit: bool = True, **kwargs: str | int | float | bool | bytes | None) -> None:
         """Update user with password handling."""
         password = kwargs.pop("password", None)
         old_password = kwargs.pop("old_password", None)
@@ -245,7 +243,7 @@ class User(BasePermsModel):
                     fields={"old_password": "Cannot be empty"},
                     message="Must provide old_password to set new password",
                 )
-            if not self.is_password_correct(old_password):
+            if not self.is_password_correct(str(old_password)):
                 raise UnprocessableEntity(
                     message="Old password is incorrect",
                     fields={"old_password": "Old password is incorrect"},
@@ -254,8 +252,8 @@ class User(BasePermsModel):
 
         super().update(commit=False, **kwargs)
         if password:
-            self.set_password(password)
-        return self.save(commit=commit)
+            self.set_password(str(password))
+        self.save(commit=commit)
 
     @property
     def is_admin(self) -> bool:
@@ -284,7 +282,7 @@ class User(BasePermsModel):
             True
         """
         # Normalize role to string for comparison
-        role_str = role.value if hasattr(role, "value") else str(role)  # type: ignore
+        role_str = role.value if isinstance(role, enum.Enum) else str(role)
 
         return any(
             r.role == role_str
@@ -334,10 +332,13 @@ class Domain(BasePermsModel):
     @classmethod
     def get_default_domain_id(cls) -> uuid.UUID | None:
         """Get the default domain ID from environment or first available."""
+        domain: Domain | None
         if default_domain := os.getenv("DEFAULT_DOMAIN_NAME"):
-            if domain := cls.query.filter_by(name=default_domain).first():
+            domain = cls.get_by(name=default_domain)
+            if domain:
                 return domain.id
-        if domain := cls.query.first():
+        domain = db.session.execute(sa.select(cls).limit(1)).scalar_one_or_none()
+        if domain:
             return domain.id
         return None
 
@@ -365,13 +366,11 @@ class UserRole(BasePermsModel):
     manager_role = CustomRole(role.role) if hasattr(CustomRole, role.role) else role.role
     """
 
-    __tablename__ = "user_roles"
-
     # Store role as string to support any enum
     # No default Role enum - accept any string/enum value
 
     # Use string reference for User to support custom models
-    user_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), db.ForeignKey(User.id), nullable=False)
     domain_id: Mapped[uuid.UUID | None] = mapped_column(
         sa.Uuid(as_uuid=True),
         db.ForeignKey("domains.id"),
@@ -409,7 +408,7 @@ class UserRole(BasePermsModel):
         self,
         domain_id: uuid.UUID | str | None = None,
         role: str | enum.Enum | None = None,
-        **kwargs,
+        **kwargs: object,
     ) -> None:
         """Initialize role with domain and role handling.
 
@@ -428,7 +427,7 @@ class UserRole(BasePermsModel):
 
         # Handle role parameter
         if role is not None:
-            kwargs["_role"] = role.value if hasattr(role, "value") else str(role)  # type: ignore
+            kwargs["_role"] = role.value if isinstance(role, enum.Enum) else str(role)
 
         super().__init__(domain_id=domain_id, **kwargs)
 
@@ -459,10 +458,6 @@ class UserRole(BasePermsModel):
 class Token(BasePermsModel, UserOwnedResourceMixin):
     """API tokens for user authentication."""
 
-    __tablename__ = "tokens"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
-    user: Mapped["User"] = relationship("User", back_populates="tokens")
     token: Mapped[str] = mapped_column(db.String(1024), nullable=False)
     description: Mapped[str | None] = mapped_column(db.String(64), nullable=True)
     expires_at: Mapped[sa.DateTime | None] = mapped_column(sa.DateTime(), nullable=True)
@@ -473,10 +468,6 @@ class Token(BasePermsModel, UserOwnedResourceMixin):
 class UserSetting(BasePermsModel, UserOwnedResourceMixin):
     """User-specific key-value settings storage."""
 
-    __tablename__ = "user_settings"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), db.ForeignKey("users.id"), nullable=False)
-    user: Mapped["User"] = relationship("User", back_populates="settings")
     key: Mapped[str] = mapped_column(db.String(80), nullable=False)
     value: Mapped[str | None] = mapped_column(db.String(1024), nullable=True)
 

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Iterator
 import pytest
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec.ext.marshmallow import resolver as default_resolver
+from marshmallow import Schema
+
 from flask import Flask
 from flask_smorest import Api
 
@@ -37,7 +39,7 @@ def app() -> Flask:
     return app
 
 
-def custom_schema_name_resolver(schema, **kwargs: str | bool) -> str:
+def custom_schema_name_resolver(schema: type[Schema], **kwargs: str | bool) -> str:
     """Custom schema name resolver that appends 'Partial' for partial schemas."""
     if getattr(schema, "partial", False):
         return default_resolver(schema) + "Partial"
@@ -241,8 +243,8 @@ class TestCRUDIntegration:
                     {"name": "Product 3", "description": "Third", "price": 30.00, "in_stock": False},
                 ]
 
-                for data in products_data:
-                    product = product_model(**data)
+                for product_dict in products_data:
+                    product = product_model(**product_dict)
                     db.session.add(product)
                 db.session.commit()
 
@@ -265,8 +267,8 @@ class TestCRUDIntegration:
                     {"name": "Product 3", "description": "Out of stock", "price": 30.00, "in_stock": False},
                 ]
 
-                for data in products_data:
-                    product = product_model(**data)
+                for product_dict in products_data:
+                    product = product_model(**product_dict)
                     db.session.add(product)
                 db.session.commit()
 
@@ -276,7 +278,7 @@ class TestCRUDIntegration:
 
                 data = response.get_json()
                 assert len(data) == 2
-                assert all(p["in_stock"] is True for p in data)
+                assert all(p.get("in_stock") for p in data)
 
     def test_create_product_validation_error(self, client: "FlaskClient", app: Flask) -> None:
         """Test creating a product with validation errors."""

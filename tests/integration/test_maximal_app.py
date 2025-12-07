@@ -15,6 +15,7 @@ from flask_more_smorest import Api, BaseModel, CRUDBlueprint, TimestampMixin, Us
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient
+    from sqlalchemy.orm import scoped_session
 
 
 @pytest.fixture(scope="function")
@@ -52,7 +53,7 @@ def maximal_app() -> Flask:
 
 
 @pytest.fixture(scope="function")
-def db_session(maximal_app: Flask):
+def db_session(maximal_app: Flask) -> Iterator["scoped_session"]:
     """Create a database session for tests."""
     with maximal_app.app_context():
         db.create_all()
@@ -62,7 +63,7 @@ def db_session(maximal_app: Flask):
 
 
 @pytest.fixture(scope="function")
-def api(maximal_app: Flask, db_session) -> Api:
+def api(maximal_app: Flask, db_session: "scoped_session") -> Api:
     """Create API instance."""
     return Api(maximal_app)
 
@@ -72,7 +73,7 @@ class Article(BaseModel, TimestampMixin):
 
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    author_id = db.Column(db.UUID, db.ForeignKey("users.id"), nullable=True)
+    author_id = db.Column(db.UUID, db.ForeignKey(User.id), nullable=True)
     published = db.Column(db.Boolean, default=False)
     view_count = db.Column(db.Integer, default=0)
 
@@ -101,7 +102,7 @@ class Comment(BaseModel, TimestampMixin):
 
     content = db.Column(db.Text, nullable=False)
     article_id = db.Column(db.UUID, db.ForeignKey(Article.id), nullable=False)
-    author_id = db.Column(db.UUID, db.ForeignKey("users.id"), nullable=True)
+    author_id = db.Column(db.UUID, db.ForeignKey(User.id), nullable=True)
 
     # Relationships - no backref needed for testing
     article = db.relationship(Article, foreign_keys=[article_id])
@@ -178,7 +179,7 @@ def client(maximal_app: Flask, api: Api, blueprints: dict[str, CRUDBlueprint]) -
 
 
 @pytest.fixture(scope="function")
-def test_user(db_session) -> Iterator[User]:
+def test_user(db_session: "scoped_session") -> Iterator[User]:
     """Create a test user."""
 
     u = User(email="test@test.com", password="password")
@@ -262,7 +263,7 @@ class TestMaximalFeatureIntegration:
         assert len(articles) == 2
         assert all(a["published"] is True for a in articles)
 
-    def test_related_models(self, db_session) -> None:
+    def test_related_models(self, db_session: "scoped_session") -> None:
         """Test relationships between articles and comments."""
 
         # Create an article
@@ -288,7 +289,7 @@ class TestMaximalFeatureIntegration:
         assert comments[0].article_id == article_id
         assert comments[1].article_id == article_id
 
-    def test_permissions_on_models(self, db_session) -> None:
+    def test_permissions_on_models(self, db_session: "scoped_session") -> None:
         """Test permission system on models."""
 
         # Create a published article (readable by anyone)
@@ -323,7 +324,7 @@ class TestMaximalFeatureIntegration:
         assert "published" in schema.fields
         assert "view_count" in schema.fields
 
-    def test_timestamps_are_automatic(self, db_session) -> None:
+    def test_timestamps_are_automatic(self, db_session: "scoped_session") -> None:
         """Test that timestamps are automatically set and updated."""
 
         article = Article(title="Test", content="Test content", published=True)
@@ -340,7 +341,7 @@ class TestMaximalFeatureIntegration:
         # updated_at should be newer
         assert article.updated_at >= original_updated_at
 
-    def test_multiple_blueprints_coexist(self, auth_client, db_session) -> None:
+    def test_multiple_blueprints_coexist(self, auth_client: "FlaskClient", db_session: "scoped_session") -> None:
         """Test that multiple CRUD blueprints work together."""
 
         # Both endpoints should be accessible
@@ -350,7 +351,7 @@ class TestMaximalFeatureIntegration:
         response = auth_client.get("/api/comments/")
         assert response.status_code == 200
 
-    def test_uuid_primary_keys(self, db_session) -> None:
+    def test_uuid_primary_keys(self, db_session: "scoped_session") -> None:
         """Test that models use UUID primary keys."""
 
         article = Article(title="UUID Test", content="Testing UUID", published=True)
@@ -360,7 +361,7 @@ class TestMaximalFeatureIntegration:
         assert article.id is not None
         assert isinstance(article.id, uuid.UUID)
 
-    def test_model_convenience_methods(self, db_session) -> None:
+    def test_model_convenience_methods(self, db_session: "scoped_session") -> None:
         """Test BaseModel convenience methods (get, get_or_404, etc.)."""
 
         article = Article(title="Test", content="Test", published=True)

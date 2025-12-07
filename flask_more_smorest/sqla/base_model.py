@@ -9,7 +9,7 @@ import datetime as dt
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Self, Any
 
 import sqlalchemy as sa
 from flask import current_app, request
@@ -19,7 +19,7 @@ from sqlalchemy.orm import DeclarativeMeta, Mapped, class_mapper, make_transient
 from sqlalchemy.orm.collections import InstrumentedList
 
 from ..error.exceptions import ForbiddenError, NotFoundError
-from .database import Base, db
+from .database import db
 
 if TYPE_CHECKING:
     from flask import Flask  # noqa: F401
@@ -107,7 +107,7 @@ class BaseModelMeta(DeclarativeMeta):
 
         return schema_cls
 
-    def __getattr__(cls, name: str) -> type[BaseSchema]:
+    def __getattr__(cls, name: str) -> Any:
         """Get attribute with lazy schema generation.
 
         Args:
@@ -137,7 +137,19 @@ class BaseModelMeta(DeclarativeMeta):
         pass
 
 
-class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
+if TYPE_CHECKING:
+    # from sqlalchemy.orm import Session
+
+    class DeclarativeMetaWithSchema(DeclarativeMeta):
+        Schema: type[BaseSchema]
+        # session: Session
+
+    model_metaclass = DeclarativeMetaWithSchema
+else:
+    model_metaclass = BaseModelMeta
+
+
+class BaseModel(db.Model, metaclass=model_metaclass):  # type: ignore[name-defined]
     """Base model for all application models.
 
     This base class provides:
@@ -185,7 +197,7 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         sort_order=11,
     )
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: object) -> None:
         """Initialize the model.
 
         Args:
@@ -398,13 +410,14 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
             >>> user.save()
         """
 
-        if self.id is not None:
+        state = sa.inspect(self)  # type: ignore
+        if getattr(state, "transient", False):
+            self._check_permission("create")
+            self.on_before_create()
+        else:
             self._check_permission("write")
             # TODO: should we move on_before_update to the update method?
             self.on_before_update()
-        else:
-            self._check_permission("create")
-            self.on_before_create()
 
         db.session.add(self)
         if commit:
@@ -591,6 +604,9 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         """
         return True
 
+    def check_create(self, val: list | set | tuple | object) -> None:
+        pass
+
     @classmethod
     def is_current_user_admin(cls) -> bool:
         """Check if current user is an admin.
@@ -601,19 +617,6 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
             False (no admin concept in base model)
         """
         return False
-
-    def check_create(self, val: object) -> bool:
-        """Check if nested objects can be created.
-
-        No-op for base class (overridden in perms model).
-
-        Args:
-            val: Value to check (can be any object)
-
-        Returns:
-            True (always allows in base model)
-        """
-        return True
 
     def __repr__(self) -> str:
         """Return string representation of the model.

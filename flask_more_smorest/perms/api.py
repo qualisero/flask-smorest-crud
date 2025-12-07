@@ -96,7 +96,7 @@ class Api(ApiOrig):
         super().init_app(app, *pargs, **kwargs)
 
         @app.before_request
-        def require_login():
+        def require_login() -> None:
             if not request.endpoint or request.endpoint.startswith("api-docs"):
                 return
             admin_endpoint = False
