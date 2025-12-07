@@ -1,13 +1,14 @@
 """Test configuration and fixtures for flask-more-smorest tests."""
 
 from typing import TYPE_CHECKING
+
 import pytest
 from flask import Flask
 from flask_smorest import Api
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from marshmallow import Schema
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
-from flask_more_smorest.sqla import db, BaseModel
+from flask_more_smorest.sqla import BaseModel, db
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient

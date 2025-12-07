@@ -4,15 +4,16 @@ This module tests the complete CRUD blueprint functionality with a real Flask ap
 using up-to-date features from flask-smorest, SQLAlchemy, and marshmallow_sqlalchemy.
 """
 
+import uuid
 from typing import TYPE_CHECKING, Iterator
 
 import pytest
-import uuid
+from apispec.ext.marshmallow import MarshmallowPlugin
+from apispec.ext.marshmallow import resolver as default_resolver
 from flask import Flask
-from apispec.ext.marshmallow import MarshmallowPlugin, resolver as default_resolver
 from flask_smorest import Api
 
-from flask_more_smorest import CRUDBlueprint, BaseModel, db, init_db
+from flask_more_smorest import BaseModel, CRUDBlueprint, db, init_db
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient

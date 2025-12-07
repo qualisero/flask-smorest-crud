@@ -46,7 +46,7 @@ from .blueprint_operationid import BlueprintOperationIdMixin
 from .crud.query_filtering import generate_filter_schema, get_statements_from_filters
 
 # Import core blueprints
-from .perms import CRUDBlueprint, Api
+from .perms import Api, CRUDBlueprint
 
 # Import user model mixins
 from .perms.model_mixins import ProfileMixin, SoftDeleteMixin, TimestampMixin

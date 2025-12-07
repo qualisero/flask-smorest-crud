@@ -4,13 +4,14 @@ This test demonstrates a complete Flask app configuration using all major featur
 of flask-more-smorest together, showing how streamlined and simple the setup can be.
 """
 
-from typing import TYPE_CHECKING, Iterator
-import pytest
 import uuid
+from typing import TYPE_CHECKING, Iterator
 
+import pytest
 from flask import Flask
 from flask_jwt_extended import create_access_token
-from flask_more_smorest import CRUDBlueprint, BaseModel, db, Api, init_db, TimestampMixin, User
+
+from flask_more_smorest import Api, BaseModel, CRUDBlueprint, TimestampMixin, User, db, init_db
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient

@@ -5,16 +5,17 @@ RESTful CRUD (Create, Read, Update, Delete) endpoints for SQLAlchemy models
 with Marshmallow schemas.
 """
 
+from dataclasses import dataclass
 from http import HTTPStatus
 from importlib import import_module
 from typing import TYPE_CHECKING, cast
-from dataclasses import dataclass
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from marshmallow import RAISE, Schema
 
 from flask_more_smorest.sqla.base_model import BaseModel
+
 from ..utils import convert_snake_to_camel
 from .query_filtering import generate_filter_schema, get_statements_from_filters
 

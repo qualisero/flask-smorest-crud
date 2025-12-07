@@ -3,9 +3,10 @@
 This module tests the BaseModel, database initialization, and migration utilities.
 """
 
-import pytest
 import uuid
 from datetime import datetime
+
+import pytest
 from flask import Flask
 
 from flask_more_smorest import BaseModel, db, init_db

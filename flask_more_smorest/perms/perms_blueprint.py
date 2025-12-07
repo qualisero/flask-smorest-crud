@@ -5,6 +5,7 @@ endpoints as public or admin-only.
 """
 
 from collections.abc import Callable
+
 from flask.views import MethodView
 from marshmallow import Schema
 

@@ -1,9 +1,10 @@
 """Unit tests for query filtering functionality."""
 
+from datetime import date, datetime
+
 import pytest
-from datetime import datetime, date
-from marshmallow import fields, Schema
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
+from marshmallow import Schema, fields
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String
 from sqlalchemy.orm import DeclarativeBase
 
 from flask_more_smorest.crud.query_filtering import generate_filter_schema, get_statements_from_filters

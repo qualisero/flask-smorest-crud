@@ -1,8 +1,10 @@
 """Unit tests for BlueprintOperationIdMixin."""
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
 from flask.views import MethodView
+
 from flask_more_smorest.blueprint_operationid import BlueprintOperationIdMixin
 
 
