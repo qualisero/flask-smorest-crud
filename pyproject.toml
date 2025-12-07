@@ -85,7 +85,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["flask_more_smorest"]
 omit = [
     "tests/*",
     "*/conftest.py",
@@ -195,21 +195,21 @@ deps =
     flake8-pyproject
     isort
 commands = 
-    black --check src tests
-    isort --check-only src tests  
-    flake8 src tests
+    black --check flask_more_smorest tests
+    isort --check-only flask_more_smorest tests  
+    flake8 flask_more_smorest tests
 
 [testenv:mypy]
 deps = mypy
-commands = mypy src
+commands = mypy flask_more_smorest
 
 [testenv:security]
 deps = bandit
-commands = bandit -r src
+commands = bandit -r flask_more_smorest
 
 [testenv:coverage]
 deps = 
     pytest
     pytest-cov
-commands = pytest --cov=src --cov-report=term-missing --cov-report=html
+commands = pytest --cov=flask_more_smorest --cov-report=term-missing --cov-report=html
 """
