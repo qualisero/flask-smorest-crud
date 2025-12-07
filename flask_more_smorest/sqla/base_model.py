@@ -56,9 +56,8 @@ class BaseSchema(SQLAlchemyAutoSchema):
             The modified data dictionary with view_args injected
         """
 
-        if request and hasattr(request, "view_args"):
-            assert isinstance(request.view_args, dict)
-            for view_arg, val in request.view_args.items():
+        if request and (args := getattr(request, "view_args")):
+            for view_arg, val in args.items():
                 if view_arg not in self.fields or self.fields[view_arg].dump_only or data.get(view_arg) is not None:
                     continue
                 # Should we only replace if view_arg is required?
@@ -251,7 +250,8 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         for key, val in fields.items():
             col = class_mapper(cls).columns[key]
             if isinstance(col.type, sa.types.Uuid) and val is not None:
-                assert isinstance(val, (str, uuid.UUID)), f"Expected str or UUID for field {key}, got {type(val)}"
+                if not isinstance(val, (str, uuid.UUID)):
+                    raise TypeError(f"Expected str or UUID for field {key}, got {type(val)}")
                 normalized[key] = cls._to_uuid(val)
         return normalized
 
