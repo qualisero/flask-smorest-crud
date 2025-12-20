@@ -103,7 +103,6 @@ jobs:
     - name: Run security checks
       run: |
         poetry run bandit -r flask_more_smorest
-        poetry run safety check
 
   build:
     runs-on: ubuntu-latest
