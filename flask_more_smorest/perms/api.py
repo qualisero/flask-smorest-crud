@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec.ext.marshmallow import resolver as default_resolver
 from flask import request
+
+# from flask_jwt_extended import JWTManager
 from flask_jwt_extended import exceptions as jwt_exceptions
 from flask_jwt_extended import verify_jwt_in_request
 from flask_smorest import Api as ApiOrig
@@ -50,6 +52,14 @@ class Api(ApiOrig):
         spec_kwargs["marshmallow_plugin"] = ma_plugin
         if app and not app.config.get("DISABLE_AUTH", False):
             spec_kwargs["security"] = [{"jwt": []}]
+
+        # if app:
+        # print(app.config.get("JWT_SECRET_KEY", []))
+        #     jwt = JWTManager()
+        #     jwt.init_app(app)
+        #     jwt._set_error_handler_callbacks(app)
+        # jwt.user_lookup_loader(user_loader_callback)
+
         super().__init__(app, spec_kwargs=spec_kwargs)
 
     def init_app(self, app: "Flask", *pargs: str, **kwargs: dict) -> None:
@@ -86,7 +96,7 @@ class Api(ApiOrig):
         super().init_app(app, *pargs, **kwargs)
 
         @app.before_request
-        def require_login():
+        def require_login() -> None:
             if not request.endpoint or request.endpoint.startswith("api-docs"):
                 return
             admin_endpoint = False

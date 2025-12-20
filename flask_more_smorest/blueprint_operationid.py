@@ -4,10 +4,11 @@ This module provides BlueprintOperationIdMixin that extends Flask-Smorest's
 Blueprint to automatically generate OpenAPI operationId values for endpoints.
 """
 
-from typing import TYPE_CHECKING, Callable
+import functools
+from typing import Callable
 
-from flask_smorest import Blueprint
 from flask.views import MethodView
+from flask_smorest import Blueprint
 
 from .utils import convert_snake_to_camel
 
@@ -77,7 +78,9 @@ class BlueprintOperationIdMixin(Blueprint):
                     operation_id = f"{operation_name}{method_view_class.__name__}"
             operation_id = convert_snake_to_camel(operation_id)
             operation_id = operation_id[0].lower() + operation_id[1:]
-            return self.doc(operationId=operation_id)(func)
+            decorated_func = self.doc(operationId=operation_id)(func)
+            # Use functools.wraps to preserve the function signature
+            return functools.wraps(func)(decorated_func)
 
         def _route(class_or_func: type["MethodView"] | Callable) -> type["MethodView"] | Callable:
             """Add operationId to the route's methods.

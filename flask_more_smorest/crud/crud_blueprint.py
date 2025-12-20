@@ -5,61 +5,53 @@ RESTful CRUD (Create, Read, Update, Delete) endpoints for SQLAlchemy models
 with Marshmallow schemas.
 """
 
+import uuid
+from dataclasses import dataclass
 from http import HTTPStatus
 from importlib import import_module
-from typing import TYPE_CHECKING
+from typing import Any, Sequence
 
+import sqlalchemy as sa
 from flask.views import MethodView
 from flask_smorest import Blueprint
+from flask_sqlalchemy.session import Session
 from marshmallow import RAISE, Schema
+from marshmallow_sqlalchemy import SQLAlchemySchema
+from sqlalchemy.orm import scoped_session
 
-# from marshmallow_sqlalchemy.load_instance_mixin import LoadInstanceMixin
+from flask_more_smorest.sqla.base_model import BaseModel
 
 from ..utils import convert_snake_to_camel
 from .query_filtering import generate_filter_schema, get_statements_from_filters
 
-if TYPE_CHECKING:
-    from ..sqla.base_model import BaseModel
 
-
+@dataclass
 class CRUDConfig:
     """Configuration object for CRUD blueprint setup.
 
     Attributes:
         name: Blueprint name
+        url_prefix: URL prefix for the blueprint
         import_name: Import name for the blueprint
-        model_name: Model class name
-        schema_name: Schema class name
+        model: SQLAlchemy model class
+        schema: Marshmallow schema class
         res_id_name: Name of the ID field on the model
         res_id_param_name: Name of the URL parameter for the ID
         methods: Dictionary of HTTP methods to generate
-        model_import_name: Module path to import model from
-        schema_import_name: Module path to import schema from
     """
 
-    def __init__(
-        self,
-        name: str,
-        url_prefix: str,
-        import_name: str,
-        model_name: str,
-        schema_name: str,
-        res_id_name: str,
-        res_id_param_name: str,
-        methods: dict[str, dict[str, Schema | str | bool]],
-        model_import_name: str,
-        schema_import_name: str,
-    ):
-        self.name = name
-        self.url_prefix = url_prefix
-        self.import_name = import_name
-        self.model_name = model_name
-        self.schema_name = schema_name
-        self.res_id_name = res_id_name
-        self.res_id_param_name = res_id_param_name
-        self.methods = methods
-        self.model_import_name = model_import_name
-        self.schema_import_name = schema_import_name
+    name: str
+    url_prefix: str
+    import_name: str
+    model_cls: type[BaseModel]
+    model_name: str
+    schema_cls: type[Schema]
+    schema_name: str
+    schema_import_path: str
+    model_import_path: str
+    res_id_name: str
+    res_id_param_name: str
+    methods: dict[str, dict[str, Schema | str | bool | object]]
 
 
 class CRUDBlueprint(Blueprint):
@@ -73,15 +65,7 @@ class CRUDBlueprint(Blueprint):
     Args:
         name: Blueprint name (first positional arg)
         import_name: Import name (second positional arg)
-        model: Model class name (default: derived from name)
-        schema: Schema class name (default: ModelName + "Schema")
-        res_id: Name of the ID field on the model (default: "id")
-        res_id_param: Name of the URL parameter for the ID (default: "{name}_id")
-        skip_methods: List of methods to skip (default: [])
-        methods: List or dict of HTTP methods to generate (default: all CRUD methods)
-        model_import_name: Module path to import model from
-        schema_import_name: Module path to import schema from
-        **kwargs: Additional Blueprint arguments
+        *pargs, **kwargs: Additional keyword arguments for CRUD configuration passed to CRUDConfig
 
     Example:
         >>> blueprint = CRUDBlueprint(
@@ -91,7 +75,14 @@ class CRUDBlueprint(Blueprint):
         ... )
     """
 
-    def __init__(self, *pargs: str, **kwargs: list[str] | dict[str, dict[str, Schema | str | bool]]) -> None:
+    _db_session: Session | scoped_session[Session]
+
+    def __init__(
+        self,
+        *pargs: str,
+        db_session: Session | scoped_session[Session] | None = None,
+        **kwargs: str | object | list[str] | None,
+    ) -> None:
         """Initialize CRUD blueprint with model and schema configuration.
 
         Args:
@@ -99,16 +90,19 @@ class CRUDBlueprint(Blueprint):
             **kwargs: Keyword arguments including model, schema, and CRUD configuration
         """
         config = self._parse_config(pargs, kwargs)
+        if db_session is None:
+            from flask_more_smorest.sqla import db
+
+            self._db_session = db.session
+        else:
+            self._db_session = db_session
 
         super().__init__(config.name, config.import_name, *pargs[2:], **kwargs)
 
-        model_cls, schema_cls = self._load_classes(config)
-        update_schema = self._prepare_update_schema(schema_cls, config)
-        self._register_crud_routes(config, model_cls, schema_cls, update_schema)
+        update_schema = self._prepare_update_schema(config)
+        self._register_crud_routes(config, update_schema)
 
-    def _parse_config(
-        self, pargs: tuple[str, ...], kwargs: dict[str, list[str] | dict[str, dict[str, Schema | str | bool]]]
-    ) -> CRUDConfig:
+    def _parse_config(self, pargs: tuple[str, ...], kwargs: dict[str, str | object | list[str] | None]) -> CRUDConfig:
         """Parse and validate configuration from args and kwargs.
 
         Args:
@@ -132,118 +126,141 @@ class CRUDBlueprint(Blueprint):
 
         url_prefix: str = str(kwargs.get("url_prefix", f"/{name}/"))
 
-        model_name: str = str(kwargs.pop("model", convert_snake_to_camel(name.capitalize())))
-        schema_name: str = str(kwargs.pop("schema", model_name + "Schema"))
-        res_id_name: str = str(kwargs.pop("res_id", "id"))
-        res_id_param_name: str = str(kwargs.pop("res_id_param", f"{name.lower()}_id"))
-        skip_methods: list[str] = list(kwargs.pop("skip_methods", []))
-        methods_raw: list[str] | dict[str, dict[str, Schema | str | bool]] = kwargs.pop(
-            "methods", ["INDEX", "GET", "POST", "PATCH", "DELETE"]
+        model_import_path: str = str(
+            kwargs.pop("model_import_name", ".".join(import_name.split(".")[:-1] + ["models"]))
+        )
+        schema_import_path: str = str(
+            kwargs.pop("schema_import_name", ".".join(import_name.split(".")[:-1] + ["schemas"]))
         )
 
-        if isinstance(methods_raw, list):
-            methods: dict[str, dict[str, Schema | str | bool]] = {m: {} for m in methods_raw}
+        model_or_name = kwargs.pop("model", convert_snake_to_camel(name.capitalize()))
+        model_cls: type[BaseModel]
+        if isinstance(model_or_name, str):
+            try:
+                model_cls = getattr(import_module(model_import_path), model_or_name)
+            except (ImportError, AttributeError) as e:
+                raise ValueError(f"Could not import model '{model_or_name}' from '{model_import_path}'.") from e
+            model_cls.__name__ = model_or_name
+        elif isinstance(model_or_name, type) and issubclass(model_or_name, BaseModel):
+            model_cls = model_or_name
         else:
+            raise ValueError("CRUDBlueprint 'model' argument must be a string or a BaseModel subclass.")
+
+        schema_or_name = kwargs.pop("schema", None)
+        schema_cls: type[Schema]
+
+        if schema_or_name is None:
+            schema_or_name = model_cls.Schema
+            # elif isinstance(model_or_name, str):
+            #     schema_or_name = f"{model_or_name}Schema"
+
+        if isinstance(schema_or_name, str):
+            try:
+                schema_module = import_module(schema_import_path)
+                if hasattr(schema_module, schema_or_name):
+                    schema_cls = getattr(schema_module, schema_or_name)
+            except (ImportError, AttributeError) as e:
+                raise ValueError(f"Could not import schema '{schema_or_name}' from '{schema_import_path}'.") from e
+        elif isinstance(schema_or_name, type) and issubclass(schema_or_name, Schema):
+            schema_cls = schema_or_name
+        else:
+            raise ValueError("CRUDBlueprint 'schema' argument must be a string or a Schema subclass.")
+
+        res_id_name: str = str(kwargs.pop("res_id", "id"))
+        res_id_param_name: str = str(kwargs.pop("res_id_param", f"{name.lower()}_id"))
+
+        skip_methods = kwargs.pop("skip_methods", [])
+        if not isinstance(skip_methods, list):
+            raise TypeError("CRUDBlueprint 'skip_methods' argument must be a list.")
+        methods_raw = kwargs.pop("methods", ["INDEX", "GET", "POST", "PATCH", "DELETE"])
+
+        methods: dict[str, dict[str, Schema | str | bool | object]]
+        if isinstance(methods_raw, list):
+            methods = {m: {} for m in methods_raw}
+        elif isinstance(methods_raw, dict):
             methods = methods_raw
+        else:
+            raise TypeError("CRUDBlueprint 'methods' argument must be a list or a dict.")
 
         for m in skip_methods:
             del methods[m]
-
-        model_import_name: str = str(
-            kwargs.pop("model_import_name", ".".join(import_name.split(".")[:-1] + ["models"]))
-        )
-        schema_import_name: str = str(
-            kwargs.pop("schema_import_name", ".".join(import_name.split(".")[:-1] + ["schemas"]))
-        )
 
         return CRUDConfig(
             name=name,
             url_prefix=url_prefix,
             import_name=import_name,
-            model_name=model_name,
-            schema_name=schema_name,
+            model_cls=model_cls,
+            model_name=model_cls.__name__,
+            schema_cls=schema_cls,
+            schema_name=schema_cls.__name__,
+            schema_import_path=schema_import_path,
+            model_import_path=model_import_path,
             res_id_name=res_id_name,
             res_id_param_name=res_id_param_name,
             methods=methods,
-            model_import_name=model_import_name,
-            schema_import_name=schema_import_name,
         )
 
-    def _load_classes(self, config: CRUDConfig) -> tuple[type["BaseModel"], type[Schema]]:
-        """Load model and schema classes from module imports.
-
-        Args:
-            config: Configuration object
-
-        Returns:
-            Tuple of (model_class, schema_class)
-        """
-        model_cls = getattr(import_module(config.model_import_name), config.model_name)
-        model_cls.__name__ = config.model_name
-
-        schema_cls = model_cls.Schema
-        try:
-            schema_module = import_module(config.schema_import_name)
-            if hasattr(schema_module, config.schema_name):
-                schema_cls = getattr(schema_module, config.schema_name)
-        except ImportError:
-            # TODO: Log warning about missing schema module (and provide explicit way to rely on auto loading)
-            pass
-
-        return model_cls, schema_cls
-
-    def _prepare_update_schema(self, schema_cls: type[Schema], config: CRUDConfig) -> Schema | type[Schema]:
+    def _prepare_update_schema(
+        self, config: CRUDConfig
+    ) -> Schema | type[Schema] | SQLAlchemySchema | type[SQLAlchemySchema]:
         """Create update schema for PATCH operations.
 
         Args:
-            schema_cls: Base schema class
             config: Configuration object
 
         Returns:
             Update schema instance or class
         """
-        schema_module = import_module(config.schema_import_name)
 
-        if update_schema_name := config.methods.get("PATCH", {}).get("arg_schema"):
+        update_schema: Schema | type[Schema] | SQLAlchemySchema | type[SQLAlchemySchema]
+
+        if update_schema_arg := config.methods.get("PATCH", {}).get("arg_schema"):
             # Explicit patch schema provided
-            if isinstance(update_schema_name, str):
-                return getattr(schema_module, update_schema_name)
-            elif (isinstance(update_schema_name, type) and issubclass(update_schema_name, Schema)) or isinstance(
-                update_schema_name, Schema
+            if isinstance(update_schema_arg, str):
+                try:
+                    schema_module = import_module(config.schema_import_path)
+                    update_schema = getattr(schema_module, update_schema_arg)
+                except (ImportError, AttributeError) as e:
+                    raise ValueError(
+                        f"Could not import schema '{update_schema_arg}' from '{config.schema_import_path}'."
+                    ) from e
+            elif (isinstance(update_schema_arg, type) and issubclass(update_schema_arg, Schema)) or isinstance(
+                update_schema_arg, Schema
             ):
-                return update_schema_name
+                update_schema = update_schema_arg
             else:
                 raise TypeError("PATCH 'arg_schema' must be a string or Schema class/instance.")
+        else:
+            # NOTE: the following will trigger a warning in apispec if no custom resolver is set
+            update_schema = config.schema_cls(partial=True)
+            if isinstance(update_schema, SQLAlchemySchema):
+                update_schema._load_instance = False
 
-        update_schema = schema_cls(partial=True)
-        if hasattr(update_schema, "_load_instance"):
-            update_schema._load_instance = False  # type: ignore[attr-defined]
         return update_schema
 
     def _register_crud_routes(
         self,
         config: CRUDConfig,
-        model_cls: type["BaseModel"],
-        schema_cls: type[Schema],
         update_schema: Schema | type[Schema],
     ) -> None:
         """Register all CRUD routes for the blueprint.
 
         Args:
             config: Configuration object
-            model_cls: Model class
-            schema_cls: Schema class
             update_schema: Update schema for PATCH operations
         """
-        id_type = str(getattr(model_cls, config.res_id_name).type).lower()
+        id_type = str(getattr(config.model_cls, config.res_id_name).type).lower()
         if id_type.startswith("char"):
             id_type = "uuid"
+        model_cls: type[BaseModel] = config.model_cls
+        schema_cls: type[Schema] = config.schema_cls
 
         if "INDEX" in config.methods or "POST" in config.methods:
             if "INDEX" in config.methods:
-                index_schema_class = config.methods["INDEX"].get("schema", schema_cls)
-                if not isinstance(index_schema_class, type(Schema)):
-                    raise TypeError(f"Expected Schema class for INDEX['schema'], got {type(index_schema_class)}")
+                cls = config.methods["INDEX"].get("schema", schema_cls)
+                if not isinstance(cls, type(Schema)):
+                    raise TypeError(f"Expected Schema class for INDEX['schema'], got {type(cls)}")
+                index_schema_class: type[Schema] = cls
                 query_filter_schema = generate_filter_schema(base_schema=index_schema_class)
 
             class GenericIndex(MethodView):
@@ -254,10 +271,13 @@ class CRUDBlueprint(Blueprint):
                     @self.arguments(query_filter_schema, location="query", unknown=RAISE)
                     @self.response(HTTPStatus.OK, index_schema_class(many=True))
                     @self.doc(operationId=f"list{config.model_name}")
-                    def get(_self, filters):
-                        """Fetch all resources."""
+                    def get(_self, filters: dict, **kwargs: Any) -> Sequence[BaseModel]:
+                        """Fetch all resources.
+                        kwargs might contains path parameters to filter by (eg /user/<uuid:user_id>/roles/)"""
+
                         stmts = get_statements_from_filters(filters, model=model_cls)
-                        return model_cls.query.filter(*stmts).all()
+                        res = self._db_session.execute(sa.select(model_cls).filter_by(**kwargs).filter(*stmts))
+                        return res.scalars().all()
 
                 if "POST" in config.methods:
 
@@ -270,9 +290,11 @@ class CRUDBlueprint(Blueprint):
                         },
                         operationId=f"create{config.model_name}",
                     )
-                    def post(_self, new_object, **kwargs):
+                    def post(
+                        _self, new_object: BaseModel, **kwargs: str | int | float | bool | bytes | None
+                    ) -> BaseModel:
                         """Create and return new resource."""
-                        new_object.update(kwargs)
+                        new_object.update(commit=True, **kwargs)
                         new_object.save()
                         return new_object
 
@@ -294,10 +316,11 @@ class CRUDBlueprint(Blueprint):
                     operationId=f"get{config.model_name}",
                 )
                 @self.response(HTTPStatus.OK, config.methods["GET"].get("schema", schema_cls))
-                def get(_self, **kwargs):
+                def get(_self, **kwargs: Any) -> BaseModel:
                     """Fetch resource by ID."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
-                    return model_cls.get_by_or_404(**kwargs)
+                    res = model_cls.get_by_or_404(**kwargs)
+                    return res
 
             if "PATCH" in config.methods:
 
@@ -310,7 +333,7 @@ class CRUDBlueprint(Blueprint):
                     operationId=f"update{config.model_name}",
                 )
                 @self.response(HTTPStatus.OK, config.methods["PATCH"].get("schema", schema_cls))
-                def patch(_self, payload, **kwargs):
+                def patch(_self, payload: dict, **kwargs: str | int | uuid.UUID | bool | None) -> BaseModel:
                     """Update resource."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
                     res = model_cls.get_by_or_404(**kwargs)
@@ -321,7 +344,7 @@ class CRUDBlueprint(Blueprint):
 
                 @self.response(HTTPStatus.NO_CONTENT, description=f"{config.name} deleted")
                 @self.doc(operationId=f"delete{config.model_name}")
-                def delete(_self, **kwargs):
+                def delete(_self, **kwargs: str | int | uuid.UUID | bool | None) -> tuple[str, int]:
                     """Delete resource."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
                     res = model_cls.get_by_or_404(**kwargs)
@@ -344,7 +367,7 @@ class CRUDBlueprint(Blueprint):
         view_cls: type[MethodView],
         method_name: str,
         docstring: str,
-        method_config: dict[str, Schema | str | bool],
+        method_config: dict[str, Schema | str | bool | object],
     ) -> None:
         """Configure endpoint with docstring and admin decorator if needed.
 
@@ -357,15 +380,10 @@ class CRUDBlueprint(Blueprint):
         if hasattr(view_cls, method_name):
             method = getattr(view_cls, method_name)
             method.__doc__ = docstring
+            if method_config.get("admin_only", False):
+                from ..perms import PermsBlueprintMixin
 
-
-def check_schema_or_schema_instance(obj: object) -> None:
-    """Test if the object is a Schema class or instance and raises TypeError if not.
-
-    Args:
-        obj: Object to test
-
-    Returns:
-    """
-    if not ((isinstance(obj, type) and issubclass(obj, Schema)) or isinstance(obj, Schema)):
-        raise TypeError(f"Expected Schema class or instance, got {type(obj)}")
+                if isinstance(self, PermsBlueprintMixin):
+                    self.admin_endpoint(method)
+                else:
+                    raise TypeError("Blueprint must inherit from PermsBlueprintMixin to set admin_only endpoint.")

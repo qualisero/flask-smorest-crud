@@ -1,4 +1,4 @@
-"""Tests for utility functions."""
+"""Unit tests for utility functions."""
 
 from flask_more_smorest.utils import convert_snake_to_camel
 
@@ -34,9 +34,19 @@ class TestConvertSnakeToCamel:
 
     def test_single_underscore(self):
         """Test conversion of single underscore."""
-        assert convert_snake_to_camel("_") == "__"  # Expected behavior based on implementation
+        assert convert_snake_to_camel("_") == "__"
 
     def test_mixed_case_input(self):
         """Test conversion with mixed case input."""
         assert convert_snake_to_camel("User_Profile") == "UserProfile"
         assert convert_snake_to_camel("user_Profile") == "UserProfile"
+
+    def test_numeric_values(self):
+        """Test conversion with numeric values."""
+        assert convert_snake_to_camel("user_123") == "User123"
+        assert convert_snake_to_camel("test_1_2_3") == "Test123"
+
+    def test_all_caps(self):
+        """Test conversion of all caps strings."""
+        assert convert_snake_to_camel("USER") == "USER"
+        assert convert_snake_to_camel("USER_PROFILE") == "UserProfile"

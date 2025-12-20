@@ -9,20 +9,22 @@ import datetime as dt
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self, TypeAlias
 
 import sqlalchemy as sa
 from flask import current_app, request
 from marshmallow import fields, pre_load
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from sqlalchemy.orm import DeclarativeMeta, Mapped, class_mapper, make_transient, mapped_column
+from marshmallow_sqlalchemy import ModelConverter, SQLAlchemyAutoSchema
+from sqlalchemy.orm import DeclarativeMeta, Mapped, MapperProperty, class_mapper, make_transient, mapped_column
 from sqlalchemy.orm.collections import InstrumentedList
 
 from ..error.exceptions import ForbiddenError, NotFoundError
-from .database import Base, db
+from .database import db
 
 if TYPE_CHECKING:
     from flask import Flask  # noqa: F401
+
+PropertyOrColumn: TypeAlias = MapperProperty | sa.Column
 
 
 class BaseSchema(SQLAlchemyAutoSchema):
@@ -56,15 +58,35 @@ class BaseSchema(SQLAlchemyAutoSchema):
             The modified data dictionary with view_args injected
         """
 
-        if request and hasattr(request, "view_args"):
-            assert isinstance(request.view_args, dict)
-            for view_arg, val in request.view_args.items():
+        if request and (args := getattr(request, "view_args")):
+            for view_arg, val in args.items():
                 if view_arg not in self.fields or self.fields[view_arg].dump_only or data.get(view_arg) is not None:
                     continue
                 # Should we only replace if view_arg is required?
                 data[view_arg] = val
 
         return data
+
+
+class BaseModelConverter(ModelConverter):
+    """Model converter for BaseModel-based SQLAlchemy models."""
+
+    def _add_relationship_kwargs(self, kwargs: dict[str, Any], prop: PropertyOrColumn) -> None:
+        """Add keyword arguments to kwargs (in-place) based on the passed in
+        relationship `Property`.
+        Copied and adapted from marshmallow_sqlalchemy.convert.ModelConverter.
+        """
+        required = False
+        allow_none = True
+        for pair in prop.local_remote_pairs:
+            if not pair[0].nullable:
+                if prop.uselist is True or self.DIRECTION_MAPPING[prop.direction.name] is False:
+                    allow_none = False
+                    # Do not make required if a default is provided:
+                    if not pair[0].default and not pair[0].server_default:
+                        required = True
+        # NOTE: always set dump_only to True for relationships (can be overriden in schema)
+        kwargs.update({"allow_none": allow_none, "required": required, "dump_only": True})
 
 
 class BaseModelMeta(DeclarativeMeta):
@@ -82,11 +104,8 @@ class BaseModelMeta(DeclarativeMeta):
             The generated schema class for this model
         """
 
-        # Dump all relationships
-        dump_only = tuple(c.key for c in getattr(cls.__mapper__, "relationships", []))
-
         schema_cls = type(
-            f"{cls.__name__}SchemaBase",
+            f"{cls.__name__}AutoSchema",
             (BaseSchema,),
             {
                 "Meta": type(
@@ -98,7 +117,8 @@ class BaseModelMeta(DeclarativeMeta):
                         "include_fk": True,
                         "load_instance": True,
                         "sqla_session": db.session,
-                        "dump_only": ("id", "created_at", "updated_at") + dump_only,
+                        "model_converter": BaseModelConverter,
+                        "dump_only": ("id", "created_at", "updated_at"),
                     },
                 )
             },
@@ -108,7 +128,7 @@ class BaseModelMeta(DeclarativeMeta):
 
         return schema_cls
 
-    def __getattr__(cls, name: str) -> type[BaseSchema]:
+    def __getattr__(cls, name: str) -> Any:
         """Get attribute with lazy schema generation.
 
         Args:
@@ -138,7 +158,19 @@ class BaseModelMeta(DeclarativeMeta):
         pass
 
 
-class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
+if TYPE_CHECKING:
+    # from sqlalchemy.orm import Session
+
+    class DeclarativeMetaWithSchema(DeclarativeMeta):
+        Schema: type[BaseSchema]
+        # session: Session
+
+    model_metaclass = DeclarativeMetaWithSchema
+else:
+    model_metaclass = BaseModelMeta
+
+
+class BaseModel(db.Model, metaclass=model_metaclass):  # type: ignore[name-defined]
     """Base model for all application models.
 
     This base class provides:
@@ -186,7 +218,7 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         sort_order=11,
     )
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: object) -> None:
         """Initialize the model.
 
         Args:
@@ -251,7 +283,8 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         for key, val in fields.items():
             col = class_mapper(cls).columns[key]
             if isinstance(col.type, sa.types.Uuid) and val is not None:
-                assert isinstance(val, (str, uuid.UUID)), f"Expected str or UUID for field {key}, got {type(val)}"
+                if not isinstance(val, (str, uuid.UUID)):
+                    raise TypeError(f"Expected str or UUID for field {key}, got {type(val)}")
                 normalized[key] = cls._to_uuid(val)
         return normalized
 
@@ -398,13 +431,14 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
             >>> user.save()
         """
 
-        if self.id is not None:
+        state = sa.inspect(self)  # type: ignore
+        if getattr(state, "transient", False):
+            self._check_permission("create")
+            self.on_before_create()
+        else:
             self._check_permission("write")
             # TODO: should we move on_before_update to the update method?
             self.on_before_update()
-        else:
-            self._check_permission("create")
-            self.on_before_create()
 
         db.session.add(self)
         if commit:
@@ -591,6 +625,9 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
         """
         return True
 
+    def check_create(self, val: list | set | tuple | object) -> None:
+        pass
+
     @classmethod
     def is_current_user_admin(cls) -> bool:
         """Check if current user is an admin.
@@ -601,19 +638,6 @@ class BaseModel(db.Model, Base, metaclass=BaseModelMeta):
             False (no admin concept in base model)
         """
         return False
-
-    def check_create(self, val: object) -> bool:
-        """Check if nested objects can be created.
-
-        No-op for base class (overridden in perms model).
-
-        Args:
-            val: Value to check (can be any object)
-
-        Returns:
-            True (always allows in base model)
-        """
-        return True
 
     def __repr__(self) -> str:
         """Return string representation of the model.

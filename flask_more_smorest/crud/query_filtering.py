@@ -7,14 +7,12 @@ filter parameters into SQLAlchemy query statements. It supports:
 - Enum list filters (field__in)
 """
 
-from typing import TYPE_CHECKING, Mapping
-import datetime as dt
+from typing import Mapping
 
 import marshmallow as ma
 from sqlalchemy import ColumnElement
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import DeclarativeBase
+from flask_more_smorest.sqla.base_model import BaseModel
 
 
 def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.Schema]:
@@ -44,18 +42,20 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
         >>> # created_at__from, created_at__to
     """
 
+    temp_instance: ma.Schema
     if isinstance(base_schema, ma.Schema):
-        base_schema = type(base_schema)
-        temp_instance = base_schema()
+        temp_instance = base_schema
     else:
         temp_instance = base_schema()
 
     new_declared_fields = {}
     remove_declared_fields = set()
+
     for field_name, field_obj in temp_instance.fields.items():
+        field_type = type(field_obj)
+
         if isinstance(field_obj, ma.fields.DateTime) or isinstance(field_obj, ma.fields.Date):
             # Replace date fields with range fields
-            field_type = type(field_obj)
             new_declared_fields[f"{field_name}__from"] = field_type(
                 load_default=None, load_only=True, dump_only=False, required=False
             )
@@ -69,7 +69,6 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
             or isinstance(field_obj, ma.fields.Decimal)
         ):
             # Add min/max fields for numeric types
-            field_type = type(field_obj)
             new_declared_fields[f"{field_name}__min"] = field_type(
                 load_default=None, load_only=True, dump_only=False, required=False
             )
@@ -85,25 +84,34 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
                 ma.fields.Enum(field_obj.enum), load_default=None, load_only=True, dump_only=False, required=False
             )
 
-    class FilterSchema(base_schema):
+    def on_bind_field(field_obj: ma.fields.Field) -> None:
+        # Called automatically when a field is attached to this schema
+        field_obj.load_default = None
+        field_obj.load_only = True
+        field_obj.dump_only = False
+        field_obj.required = False
 
-        def on_bind_field(self, field_name, field_obj):
-            # Called automatically when a field is attached to this schema
-            field_obj.load_default = None
-            field_obj.load_only = True
-            field_obj.dump_only = False
-            field_obj.required = False
+    def remove_none_fields(data: dict) -> dict:
+        # Remove fields with None values from the deserialized data
+        return {k: v for k, v in data.items() if v is not None}
 
-        @ma.post_load
-        def remove_none_fields(self, data, **kwargs):
-            # Remove fields with None values from the deserialized data
-            return {k: v for k, v in data.items() if v is not None}
-
-        class Meta(base_schema.Meta):
-            partial = True
-            load_instance = False
-            # NOTE: need to also set this in bp.arguments() call for flask-smorest to work:
-            unknown = ma.RAISE
+    FilterSchema: type[ma.Schema] = type(
+        "FilterSchema",
+        (type(temp_instance),),
+        {
+            "on_bind_field": lambda self, field_name, field_obj: on_bind_field(field_obj),
+            "remove_none_fields": ma.post_load(lambda self, data, **kwargs: remove_none_fields(data)),
+            "Meta": type(
+                "Meta",
+                (getattr(type(temp_instance), "Meta", object),),
+                {
+                    "partial": True,
+                    "load_instance": False,
+                    "unknown": ma.RAISE,
+                },
+            ),
+        },
+    )
 
     # Add the new fields to the class's declared_fields
     for field_name, field_obj in new_declared_fields.items():
@@ -117,7 +125,7 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
     return FilterSchema
 
 
-def get_statements_from_filters(kwargs: Mapping, model: type["DeclarativeBase"]) -> set[ColumnElement[bool]]:
+def get_statements_from_filters(kwargs: Mapping, model: type[BaseModel]) -> set[ColumnElement[bool]]:
     """Convert query kwargs into SQLAlchemy filters based on the schema.
 
     This function processes filtering parameters and converts them to

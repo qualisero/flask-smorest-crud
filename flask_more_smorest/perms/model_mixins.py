@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 if TYPE_CHECKING:
-    from .user_models import User, current_user, get_current_user_id
+    from .user_models import User, current_user
 
 
 class HasUserMixin:
@@ -36,6 +36,11 @@ class HasUserMixin:
         Returns:
             Mapped UUID column with foreign key to users table
         """
+        from .user_models import get_current_user_id
+
+        # NOTE: This ForeignKey string relies on SQLAlchemy's default table naming
+        # convention, which generates the "user" table name from the User class.
+        # If User.__tablename__ is changed, update "user.id" accordingly.
         return mapped_column(
             sa.Uuid(as_uuid=True),
             sa.ForeignKey("user.id", ondelete="CASCADE"),
@@ -50,11 +55,21 @@ class HasUserMixin:
         Returns:
             Mapped relationship to the User who owns this record
         """
-        return relationship(
-            "User",
-            lazy="joined",
-            foreign_keys=[getattr(cls, "user_id")],
-        )
+        backref_name = f"{cls.__tablename__}s"  # type: ignore
+        # Add backref to User model, unless it already exists
+        from .user_models import User
+
+        if hasattr(User, backref_name) or backref_name in ("user_roles", "user_settings"):
+            backref_arg = None
+        else:
+            backref_arg = backref(
+                backref_name,
+                cascade="all, delete-orphan",
+                passive_deletes=True,
+                lazy="dynamic",
+            )
+
+        return relationship("User", lazy="joined", foreign_keys=[getattr(cls, "user_id")], backref=backref_arg)
 
 
 class UserCanReadWriteMixin(HasUserMixin):

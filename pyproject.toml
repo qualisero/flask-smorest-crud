@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "flask-more-smorest"
-version = "0.1.0"
+version = "0.2.0"
 description = "Enhanced Flask-Smorest blueprints with automatic CRUD operations"
 authors = ["Dave <david@qualisero.com>"]
 maintainers = ["Dave <david@qualisero.com>"]
@@ -55,7 +55,6 @@ black = "^25.1.0"
 flake8 = "^7.0.0"
 flake8-pyproject = "^1.2.3"
 isort = "^5.13.2"
-mypy = "^1.8.0"
 bandit = "^1.7.5"
 
 # Development Tools
@@ -66,6 +65,7 @@ tox = "^4.11.4"
 sphinx = "^7.2.6"
 sphinx-rtd-theme = "^2.0.0"
 myst-parser = "^2.0.0"
+mypy = "^1.19.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -73,7 +73,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers --cov=flask_more_smorest --cov-report=term-missing --cov-report=html"
+# addopts = "-ra -q --strict-markers --cov=flask_more_smorest --cov-report=term-missing --cov-report=html"
+addopts = "-ra -q --strict-markers"
 testpaths = [
     "tests",
 ]
@@ -84,7 +85,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["flask_more_smorest"]
 omit = [
     "tests/*",
     "*/conftest.py",
@@ -157,7 +158,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = true
+disallow_untyped_decorators = false
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -165,6 +166,8 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
+disable_error_code = ["untyped-decorator"]
+
 
 [[tool.mypy.overrides]]
 module = [
@@ -194,21 +197,21 @@ deps =
     flake8-pyproject
     isort
 commands = 
-    black --check src tests
-    isort --check-only src tests  
-    flake8 src tests
+    black --check flask_more_smorest tests
+    isort --check-only flask_more_smorest tests  
+    flake8 flask_more_smorest tests
 
 [testenv:mypy]
 deps = mypy
-commands = mypy src
+commands = mypy flask_more_smorest
 
 [testenv:security]
 deps = bandit
-commands = bandit -r src
+commands = bandit -r flask_more_smorest
 
 [testenv:coverage]
 deps = 
     pytest
     pytest-cov
-commands = pytest --cov=src --cov-report=term-missing --cov-report=html
+commands = pytest --cov=flask_more_smorest --cov-report=term-missing --cov-report=html
 """

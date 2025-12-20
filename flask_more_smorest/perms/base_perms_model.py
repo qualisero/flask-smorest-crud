@@ -7,8 +7,9 @@ permission checking functionality based on the current user context.
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import TYPE_CHECKING, Callable
 
+import sqlalchemy as sa
 from flask import has_request_context
 from flask_jwt_extended import exceptions, verify_jwt_in_request
 from werkzeug.exceptions import Unauthorized
@@ -43,7 +44,7 @@ class BasePermsModel(SQLABaseModel):
     __abstract__ = True
     perms_disabled = False
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: object) -> None:
         """Initialize the model after checking that all sub fields can be created.
 
         Args:
@@ -117,7 +118,7 @@ class BasePermsModel(SQLABaseModel):
         if not is_role_instance and not is_admin and self.is_current_user_admin():
             return True
 
-        if self.id is None:
+        if getattr(sa.inspect(self), "transient", False):
             return self._execute_permission_check(self._can_create, "create")
         return self._execute_permission_check(self._can_write, "write")
 
@@ -195,7 +196,7 @@ class BasePermsModel(SQLABaseModel):
 
         return False
 
-    def check_create(self, val: Iterable) -> None:
+    def check_create(self, val: list | set | tuple | object) -> None:
         """Recursively check that all BaseModel instances can be created.
 
         Args:
@@ -204,9 +205,9 @@ class BasePermsModel(SQLABaseModel):
         Raises:
             ForbiddenError: If any nested object cannot be created
         """
-        for x in val:
-            if isinstance(x, BasePermsModel):
-                if x.id is None and not x.can_create():
-                    raise ForbiddenError(f"User not allowed to create resource: {x}")
-            elif isinstance(x, list):
+        if isinstance(val, BasePermsModel):
+            if getattr(sa.inspect(val), "transient", False) and not val.can_create():
+                raise ForbiddenError(f"User not allowed to create resource: {val}")
+        elif isinstance(val, list) or isinstance(val, set) or isinstance(val, tuple):
+            for x in val:
                 self.check_create(x)
