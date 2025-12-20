@@ -53,17 +53,20 @@ class HasUserMixin:
             Mapped relationship to the User who owns this record
         """
         backref_name = f"{cls.__tablename__}s"  # type: ignore
+        # Add backref to User model, unless it already exists
+        from .user_models import User
 
-        return relationship(
-            "User",
-            lazy="joined",
-            foreign_keys=[getattr(cls, "user_id")],
-            backref=backref(
+        if hasattr(User, backref_name) or backref_name in ("user_roles", "user_settings"):
+            backref_arg = None
+        else:
+            backref_arg = backref(
                 backref_name,
                 cascade="all, delete-orphan",
                 passive_deletes=True,
-            ),
-        )
+                lazy="dynamic",
+            )
+
+        return relationship("User", lazy="joined", foreign_keys=[getattr(cls, "user_id")], backref=backref_arg)
 
 
 class UserCanReadWriteMixin(HasUserMixin):

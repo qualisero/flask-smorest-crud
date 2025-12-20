@@ -9,13 +9,13 @@ import datetime as dt
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Self, Any
+from typing import TYPE_CHECKING, Self, Any, TypeAlias
 
 import sqlalchemy as sa
 from flask import current_app, request
 from marshmallow import fields, pre_load
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from sqlalchemy.orm import DeclarativeMeta, Mapped, class_mapper, make_transient, mapped_column
+from marshmallow_sqlalchemy import ModelConverter, SQLAlchemyAutoSchema
+from sqlalchemy.orm import DeclarativeMeta, Mapped, class_mapper, make_transient, mapped_column, MapperProperty
 from sqlalchemy.orm.collections import InstrumentedList
 
 from ..error.exceptions import ForbiddenError, NotFoundError
@@ -23,6 +23,8 @@ from .database import db
 
 if TYPE_CHECKING:
     from flask import Flask  # noqa: F401
+    
+PropertyOrColumn: TypeAlias = MapperProperty | sa.Column
 
 
 class BaseSchema(SQLAlchemyAutoSchema):
@@ -66,6 +68,28 @@ class BaseSchema(SQLAlchemyAutoSchema):
         return data
 
 
+class BaseModelConverter(ModelConverter):
+    """Model converter for Iao models."""
+
+    def _add_relationship_kwargs(self, kwargs: dict[str, Any], prop: PropertyOrColumn) -> None:
+        """Add keyword arguments to kwargs (in-place) based on the passed in
+        relationship `Property`.
+        Copied and adapted from marshmallow_sqlalchemy.convert.ModelConverter.
+        """
+        required = False
+        allow_none = True
+        for pair in prop.local_remote_pairs:
+            if not pair[0].nullable:
+                if prop.uselist is True or self.DIRECTION_MAPPING[prop.direction.name] is False:
+                    allow_none = False
+                    # Do not make required if a default is provided:
+                    if not pair[0].default and not pair[0].server_default:
+                        required = True
+        # NOTE: always set dump_only to True for relationships (can be overriden in schema)
+        kwargs.update({"allow_none": allow_none, "required": required, "dump_only": True})
+
+
+
 class BaseModelMeta(DeclarativeMeta):
     """Metaclass for BaseModel that provides automatic schema generation.
 
@@ -81,9 +105,6 @@ class BaseModelMeta(DeclarativeMeta):
             The generated schema class for this model
         """
 
-        # Dump all relationships
-        dump_only = tuple(c.key for c in getattr(cls.__mapper__, "relationships", []))
-
         schema_cls = type(
             f"{cls.__name__}AutoSchema",
             (BaseSchema,),
@@ -97,7 +118,8 @@ class BaseModelMeta(DeclarativeMeta):
                         "include_fk": True,
                         "load_instance": True,
                         "sqla_session": db.session,
-                        "dump_only": ("id", "created_at", "updated_at") + dump_only,
+                        "model_converter": BaseModelConverter,
+                        "dump_only": ("id", "created_at", "updated_at"),
                     },
                 )
             },

@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Mapping
 import marshmallow as ma
 from sqlalchemy import ColumnElement
 
+from flask_more_smorest.sqla.base_model import BaseModel
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import DeclarativeBase
 
@@ -148,7 +150,7 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
     return FilterSchema
 
 
-def get_statements_from_filters(kwargs: Mapping, model: type["DeclarativeBase"]) -> set[ColumnElement[bool]]:
+def get_statements_from_filters(kwargs: Mapping, model: type[BaseModel]) -> set[ColumnElement[bool]]:
     """Convert query kwargs into SQLAlchemy filters based on the schema.
 
     This function processes filtering parameters and converts them to

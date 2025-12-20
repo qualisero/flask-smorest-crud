@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from importlib import import_module
 import uuid
-from typing import Sequence
+from typing import Any, Sequence
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
@@ -268,28 +268,28 @@ class CRUDBlueprint(Blueprint):
 
                 if "INDEX" in config.methods:
 
-                    @self.arguments(query_filter_schema, location="query", unknown=RAISE)
-                    @self.response(HTTPStatus.OK, index_schema_class(many=True))
-                    @self.doc(operationId=f"list{config.model_name}")
-                    def get(_self, filters: dict, **kwargs) -> Sequence[BaseModel]:
+                    @self.arguments(query_filter_schema, location="query", unknown=RAISE)  # type: ignore[misc]
+                    @self.response(HTTPStatus.OK, index_schema_class(many=True))  # type: ignore[misc]
+                    @self.doc(operationId=f"list{config.model_name}")  # type: ignore[misc]
+                    def get(_self, filters: dict, **kwargs: Any) -> Sequence[BaseModel]:
                         """Fetch all resources.
                         kwargs might contains path parameters to filter by (eg /user/<uuid:user_id>/roles/)"""
-                        
+
                         stmts = get_statements_from_filters(filters, model=model_cls)
                         res = self._db_session.execute(sa.select(model_cls).filter_by(**kwargs).filter(*stmts))
                         return res.scalars().all()
 
                 if "POST" in config.methods:
 
-                    @self.arguments(config.methods["POST"].get("schema", schema_cls))
-                    @self.response(HTTPStatus.OK, config.methods["POST"].get("schema", schema_cls))
+                    @self.arguments(config.methods["POST"].get("schema", schema_cls))  # type: ignore[misc]
+                    @self.response(HTTPStatus.OK, config.methods["POST"].get("schema", schema_cls))  # type: ignore[misc]
                     @self.doc(
                         responses={
                             HTTPStatus.NOT_FOUND: {"description": f"{config.name} resource not found"},
                             HTTPStatus.CONFLICT: {"description": "DB error."},
                         },
                         operationId=f"create{config.model_name}",
-                    )
+                    )  # type: ignore[misc]
                     def post(
                         _self, new_object: BaseModel, **kwargs: str | int | float | bool | bytes | None
                     ) -> BaseModel:
@@ -314,9 +314,9 @@ class CRUDBlueprint(Blueprint):
                 @self.doc(
                     responses={HTTPStatus.NOT_FOUND: {"description": f"{config.name} not found"}},
                     operationId=f"get{config.model_name}",
-                )
-                @self.response(HTTPStatus.OK, config.methods["GET"].get("schema", schema_cls))
-                def get(_self, **kwargs: str | int | uuid.UUID | bool | None) -> BaseModel:
+                )  # type: ignore[misc]
+                @self.response(HTTPStatus.OK, config.methods["GET"].get("schema", schema_cls))  # type: ignore[misc]
+                def get(_self, **kwargs: Any) -> BaseModel:
                     """Fetch resource by ID."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
                     res = model_cls.get_by_or_404(**kwargs)
@@ -324,15 +324,15 @@ class CRUDBlueprint(Blueprint):
 
             if "PATCH" in config.methods:
 
-                @self.arguments(update_schema)
+                @self.arguments(update_schema)  # type: ignore[misc]
                 @self.doc(
                     responses={
                         HTTPStatus.NOT_FOUND: {"description": f"{config.name} not found"},
                         HTTPStatus.CONFLICT: {"description": "DB error."},
                     },
                     operationId=f"update{config.model_name}",
-                )
-                @self.response(HTTPStatus.OK, config.methods["PATCH"].get("schema", schema_cls))
+                )  # type: ignore[misc]
+                @self.response(HTTPStatus.OK, config.methods["PATCH"].get("schema", schema_cls))  # type: ignore[misc]
                 def patch(_self, payload: dict, **kwargs: str | int | uuid.UUID | bool | None) -> BaseModel:
                     """Update resource."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
@@ -342,8 +342,8 @@ class CRUDBlueprint(Blueprint):
 
             if "DELETE" in config.methods:
 
-                @self.response(HTTPStatus.NO_CONTENT, description=f"{config.name} deleted")
-                @self.doc(operationId=f"delete{config.model_name}")
+                @self.response(HTTPStatus.NO_CONTENT, description=f"{config.name} deleted")  # type: ignore[misc]
+                @self.doc(operationId=f"delete{config.model_name}")  # type: ignore[misc]
                 def delete(_self, **kwargs: str | int | uuid.UUID | bool | None) -> tuple[str, int]:
                     """Delete resource."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
