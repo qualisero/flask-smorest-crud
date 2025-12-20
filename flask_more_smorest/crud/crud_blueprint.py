@@ -386,16 +386,4 @@ class CRUDBlueprint(Blueprint):
                 if isinstance(self, PermsBlueprintMixin):
                     self.admin_endpoint(method)
                 else:
-                    raise TypeError("Blueprint must inherti from PermsBlueprintMixin to set admin_only endpoint.")
-
-
-# def check_schema_or_schema_instance(obj: object) -> None:
-#     """Test if the object is a Schema class or instance and raises TypeError if not.
-
-#     Args:
-#         obj: Object to test
-
-#     Returns:
-#     """
-#     if not ((isinstance(obj, type) and issubclass(obj, Schema)) or isinstance(obj, Schema)):
-#         raise TypeError(f"Expected Schema class or instance, got {type(obj)}")
+                    raise TypeError("Blueprint must inherit from PermsBlueprintMixin to set admin_only endpoint.")

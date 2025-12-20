@@ -40,7 +40,7 @@ class HasUserMixin:
 
         return mapped_column(
             sa.Uuid(as_uuid=True),
-            sa.ForeignKey("user.id", ondelete="CASCADE"),
+            sa.ForeignKey("User.id", ondelete="CASCADE"),
             nullable=False,
             default=get_current_user_id,
         )
