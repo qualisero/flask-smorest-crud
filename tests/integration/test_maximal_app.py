@@ -190,7 +190,7 @@ def test_user(db_session: "scoped_session") -> Iterator[User]:
 
 
 @pytest.fixture(scope="function")
-def auth_client(app: "Flask", client: "FlaskClient", test_user: "User") -> Iterator["FlaskClient"]:
+def auth_client(app: Flask, client: "FlaskClient", test_user: "User") -> Iterator["FlaskClient"]:
     """Create an authenticated client for testing."""
     access_token = create_access_token(identity=test_user.id)
     client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {access_token}"

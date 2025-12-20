@@ -38,9 +38,12 @@ class HasUserMixin:
         """
         from .user_models import get_current_user_id
 
+        # NOTE: This ForeignKey string relies on SQLAlchemy's default table naming
+        # convention, which generates the "user" table name from the User class.
+        # If User.__tablename__ is changed, update "user.id" accordingly.
         return mapped_column(
             sa.Uuid(as_uuid=True),
-            sa.ForeignKey("User.id", ondelete="CASCADE"),
+            sa.ForeignKey("user.id", ondelete="CASCADE"),
             nullable=False,
             default=get_current_user_id,
         )
