@@ -89,6 +89,8 @@ class UserCanReadWriteMixin(HasUserMixin):
         Returns:
             True if current user owns this record
         """
+        from .user_models import current_user
+        
         return self.user_id == current_user.id
 
     def _can_read(self) -> bool:
@@ -97,6 +99,8 @@ class UserCanReadWriteMixin(HasUserMixin):
         Returns:
             True if current user owns this record
         """
+        from .user_models import current_user
+        
         return self.user_id == current_user.id
 
 
