@@ -8,13 +8,13 @@ from flask_more_smorest.blueprint_operationid import BlueprintOperationIdMixin
 class TestBlueprintOperationIdMixin:
     """Tests for BlueprintOperationIdMixin class."""
 
-    def test_mixin_inheritance(self):
+    def test_mixin_inheritance(self) -> None:
         """Test that BlueprintOperationIdMixin inherits from Blueprint."""
         from flask_smorest import Blueprint
 
         assert issubclass(BlueprintOperationIdMixin, Blueprint)
 
-    def test_route_method_exists(self):
+    def test_route_method_exists(self) -> None:
         """Test that route method exists and can be called."""
         # Create a minimal mock app
         from flask import Flask
@@ -26,7 +26,7 @@ class TestBlueprintOperationIdMixin:
             assert hasattr(bp, "route")
             assert callable(bp.route)
 
-    def test_operation_id_generation_for_list_endpoint(self):
+    def test_operation_id_generation_for_list_endpoint(self) -> None:
         """Test operationId generation for list endpoints."""
         from flask import Flask
 
@@ -40,7 +40,7 @@ class TestBlueprintOperationIdMixin:
             class Users(MethodView):
                 methods = ["GET"]
 
-                def get(self):
+                def get(self) -> dict:
                     return {"users": []}
 
             # Check that operationId was set
@@ -50,7 +50,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "listUser"
 
-    def test_operation_id_generation_for_get_endpoint(self):
+    def test_operation_id_generation_for_get_endpoint(self) -> None:
         """Test operationId generation for GET single item endpoint."""
         from flask import Flask
 
@@ -63,7 +63,7 @@ class TestBlueprintOperationIdMixin:
             class User(MethodView):
                 methods = ["GET"]
 
-                def get(self, user_id):
+                def get(self, user_id: str) -> dict:
                     return {"user": {}}
 
             get_method = getattr(User, "get")
@@ -72,7 +72,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "getUser"
 
-    def test_operation_id_generation_for_post_endpoint(self):
+    def test_operation_id_generation_for_post_endpoint(self) -> None:
         """Test operationId generation for POST endpoint."""
         from flask import Flask
 
@@ -85,7 +85,7 @@ class TestBlueprintOperationIdMixin:
             class Users(MethodView):
                 methods = ["POST"]
 
-                def post(self):
+                def post(self) -> dict:
                     return {"user": {}}
 
             post_method = getattr(Users, "post")
@@ -94,7 +94,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "createUsers"
 
-    def test_operation_id_generation_for_patch_endpoint(self):
+    def test_operation_id_generation_for_patch_endpoint(self) -> None:
         """Test operationId generation for PATCH endpoint."""
         from flask import Flask
 
@@ -107,7 +107,7 @@ class TestBlueprintOperationIdMixin:
             class User(MethodView):
                 methods = ["PATCH"]
 
-                def patch(self, user_id):
+                def patch(self, user_id: str) -> dict:
                     return {"user": {}}
 
             patch_method = getattr(User, "patch")
@@ -116,7 +116,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "updateUser"
 
-    def test_operation_id_generation_for_delete_endpoint(self):
+    def test_operation_id_generation_for_delete_endpoint(self) -> None:
         """Test operationId generation for DELETE endpoint."""
         from flask import Flask
 
@@ -129,7 +129,7 @@ class TestBlueprintOperationIdMixin:
             class User(MethodView):
                 methods = ["DELETE"]
 
-                def delete(self, user_id):
+                def delete(self, user_id: str) -> tuple[str, int]:
                     return "", 204
 
             delete_method = getattr(User, "delete")
@@ -138,7 +138,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "deleteUser"
 
-    def test_operation_id_with_snake_case_class_name(self):
+    def test_operation_id_with_snake_case_class_name(self) -> None:
         """Test operationId generation with snake_case class name."""
         from flask import Flask
 
@@ -151,7 +151,7 @@ class TestBlueprintOperationIdMixin:
             class UserProfile(MethodView):
                 methods = ["GET"]
 
-                def get(self, user_profile_id):
+                def get(self, user_profile_id: str) -> dict:
                     return {"profile": {}}
 
             get_method = getattr(UserProfile, "get")
@@ -160,7 +160,7 @@ class TestBlueprintOperationIdMixin:
             assert "operationId" in apidoc["manual_doc"]
             assert apidoc["manual_doc"]["operationId"] == "getUserProfile"
 
-    def test_manual_operation_id_not_overridden(self):
+    def test_manual_operation_id_not_overridden(self) -> None:
         """Test that manually set operationId is not overridden."""
         from flask import Flask
 
@@ -174,7 +174,7 @@ class TestBlueprintOperationIdMixin:
                 methods = ["GET"]
 
                 @bp.doc(operationId="customGetUser")
-                def get(self, user_id):
+                def get(self, user_id: str) -> dict:
                     return {"user": {}}
 
             get_method = getattr(User, "get")
@@ -182,7 +182,7 @@ class TestBlueprintOperationIdMixin:
             # Manual operationId should be preserved
             assert apidoc["manual_doc"]["operationId"] == "customGetUser"
 
-    def test_operation_id_for_function_route(self):
+    def test_operation_id_for_function_route(self) -> None:
         """Test operationId generation for function-based routes."""
         from flask import Flask
 
@@ -192,7 +192,7 @@ class TestBlueprintOperationIdMixin:
             bp = BlueprintOperationIdMixin("test", __name__)
 
             @bp.route("/custom")
-            def custom_endpoint():
+            def custom_endpoint() -> dict:
                 return {"message": "success"}
 
             # For function-based routes, use function name

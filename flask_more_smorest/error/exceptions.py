@@ -21,36 +21,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# class ApiErrorDebugSchema(Schema):
-#     message = fields.String(required=True)
-#     traceback = fields.List(fields.String)
-#     debug_context = fields.Dict()
-
-
-# class ApiErrorResponseSchema(Schema):
-#     title = fields.String(required=True)
-#     status_code = fields.Integer(required=True)
-#     error_code = fields.String(required=True)
-#     details = fields.Dict(dump_default={})
-#     debug = fields.Nested(ApiErrorDebugSchema, required=True)
-
-
-# class UnprocessableEntityError(Schema):
-#     """Schema for unprocessable entity errors."""
-
-#     json = fields.Dict(required=False)
-#     file = fields.Dict(required=False)
-#     query = fields.Dict(required=False)
-
-
-# class UnprocessableEntitySchema(Schema):
-#     """Schema for unprocessable entity exception."""
-
-#     message = fields.String(required=True)
-#     errors = fields.Nested(UnprocessableEntityError, required=True)
-#     valid_data = fields.Dict(required=False)
-
-
 class ApiException(Exception):
     """Base exception class for all API errors.
 

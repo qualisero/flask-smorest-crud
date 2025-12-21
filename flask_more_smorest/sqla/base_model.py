@@ -42,9 +42,7 @@ class BaseSchema(SQLAlchemyAutoSchema):
     is_writable = fields.Boolean(dump_only=True)
 
     @pre_load
-    def pre_load(
-        self, data: dict[str, str | int | float | bool], **kwargs: dict
-    ) -> dict[str, str | int | float | bool]:
+    def pre_load(self, data: dict[str, str | int | float | bool], **kwargs: Any) -> dict[str, str | int | float | bool]:
         """Pre-load hook to handle UUID conversion and view_args injection.
 
         Automatically injects URL parameters from Flask's request.view_args
@@ -158,19 +156,7 @@ class BaseModelMeta(DeclarativeMeta):
         pass
 
 
-if TYPE_CHECKING:
-    # from sqlalchemy.orm import Session
-
-    class DeclarativeMetaWithSchema(DeclarativeMeta):
-        Schema: type[BaseSchema]
-        # session: Session
-
-    model_metaclass = DeclarativeMetaWithSchema
-else:
-    model_metaclass = BaseModelMeta
-
-
-class BaseModel(db.Model, metaclass=model_metaclass):  # type: ignore[name-defined]
+class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined]
     """Base model for all application models.
 
     This base class provides:

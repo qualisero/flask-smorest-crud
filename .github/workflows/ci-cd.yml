@@ -155,6 +155,6 @@ jobs:
     
     - name: Publish to PyPI
       env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}  # disable
+        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         poetry publish --no-interaction

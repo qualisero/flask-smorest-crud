@@ -26,8 +26,28 @@ def app() -> Flask:
     return app
 
 
+class Product(BaseModel):
+    """A simple product model for testing."""
+
+    __tablename__ = "products"
+
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500))
+    count = db.Column(db.Integer, default=0)
+
+    def _can_read(self) -> bool:
+        return True
+
+    def _can_write(self) -> bool:
+        return True
+
+    @classmethod
+    def _can_create(cls) -> bool:
+        return True
+
+
 @pytest.fixture(scope="function")
-def test_model(app: Flask) -> type[BaseModel]:
+def test_model(app: Flask) -> type[Product]:
     """Create a test model class."""
 
     rand_str = uuid.uuid4().hex
@@ -36,16 +56,10 @@ def test_model(app: Flask) -> type[BaseModel]:
 
     TestItem = type(
         class_name,
-        (BaseModel,),
+        (Product,),
         {
             "__tablename__": table_name,
             "__module__": __name__,
-            "name": db.Column(db.String(100), nullable=False),
-            "description": db.Column(db.String(500)),
-            "count": db.Column(db.Integer, default=0),
-            "_can_read": lambda self: True,
-            "_can_write": lambda self: True,
-            "_can_create": classmethod(lambda cls: True),
         },
     )
 
@@ -82,7 +96,7 @@ class TestBaseModelIntegration:
                 assert item.updated_at is not None
                 assert isinstance(item.updated_at, datetime)
 
-    def test_base_model_save_method(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_save_method(self, app: Flask, test_model: type[Product]) -> None:
         """Test the save convenience method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -93,9 +107,9 @@ class TestBaseModelIntegration:
                 assert item.id is not None
                 retrieved = db.session.get(test_model, item.id)
                 assert retrieved is not None
-                assert retrieved.name == "Test Item"  # type: ignore
+                assert retrieved.name == "Test Item"
 
-    def test_base_model_update_method(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_update_method(self, app: Flask, test_model: type[Product]) -> None:
         """Test the update convenience method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -106,12 +120,12 @@ class TestBaseModelIntegration:
                 # Update the item
                 item.update(name="Updated Name", count=10)
 
-                assert item.name == "Updated Name"  # type: ignore
-                assert item.count == 10  # type: ignore
+                assert item.name == "Updated Name"
+                assert item.count == 10
                 # updated_at should be newer
                 assert item.updated_at >= original_updated_at
 
-    def test_base_model_delete_method(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_delete_method(self, app: Flask, test_model: type[Product]) -> None:
         """Test the delete method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -126,7 +140,7 @@ class TestBaseModelIntegration:
                 retrieved = db.session.get(test_model, item_id)
                 assert retrieved is None
 
-    def test_base_model_get_method(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_get_method(self, app: Flask, test_model: type[Product]) -> None:
         """Test the get class method."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -138,9 +152,9 @@ class TestBaseModelIntegration:
                 retrieved = test_model.get(item_id)
                 assert retrieved is not None
                 assert retrieved.id == item_id
-                assert retrieved.name == "Test Item"  # type: ignore
+                assert retrieved.name == "Test Item"
 
-    def test_base_model_get_or_404_success(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_get_or_404_success(self, app: Flask, test_model: type[Product]) -> None:
         """Test get_or_404 with existing item."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -152,7 +166,7 @@ class TestBaseModelIntegration:
                 retrieved = test_model.get_or_404(item_id)
                 assert retrieved.id == item_id
 
-    def test_base_model_get_or_404_not_found(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_get_or_404_not_found(self, app: Flask, test_model: type[Product]) -> None:
         """Test get_or_404 with non-existent item."""
         from flask_more_smorest.error.exceptions import NotFoundError
 
@@ -164,7 +178,7 @@ class TestBaseModelIntegration:
                 with pytest.raises(NotFoundError):
                     test_model.get_or_404(non_existent_id)
 
-    def test_base_model_get_by_method(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_get_by_method(self, app: Flask, test_model: type[Product]) -> None:
         """Test the get_by method for filtering."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -176,14 +190,14 @@ class TestBaseModelIntegration:
                 # Find by name
                 result = test_model.get_by(name="Item One")
                 assert result is not None
-                assert result.name == "Item One"  # type: ignore
+                assert result.name == "Item One"
 
                 # Find by count
                 result = test_model.get_by(count=2)
                 assert result is not None
-                assert result.name == "Item Two"  # type: ignore
+                assert result.name == "Item Two"
 
-    def test_base_model_get_by_or_404(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_get_by_or_404(self, app: Flask, test_model: type[Product]) -> None:
         """Test get_by_or_404 method."""
         from flask_more_smorest.error.exceptions import NotFoundError
 
@@ -194,13 +208,13 @@ class TestBaseModelIntegration:
 
                 # Should retrieve successfully
                 retrieved = test_model.get_by_or_404(name="Test Item")
-                assert retrieved.name == "Test Item"  # type: ignore
+                assert retrieved.name == "Test Item"
 
                 # Should raise NotFoundError
                 with pytest.raises(NotFoundError):
                     test_model.get_by_or_404(name="Non-existent")
 
-    def test_base_model_schema_generation(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_schema_generation(self, app: Flask, test_model: type[Product]) -> None:
         """Test that BaseModel generates a Schema class."""
         with app.app_context():
             schema_class = test_model.Schema
@@ -213,7 +227,7 @@ class TestBaseModelIntegration:
             assert "name" in schema.fields
             assert "is_writable" in schema.fields
 
-    def test_base_model_bypass_perms_context(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_base_model_bypass_perms_context(self, app: Flask, test_model: type[Product]) -> None:
         """Test bypass_perms context manager."""
         with app.app_context():
             # Within bypass_perms context, permissions should be bypassed
@@ -223,7 +237,7 @@ class TestBaseModelIntegration:
                 assert item.id is not None
 
             # Can still access the item after context
-            assert item.name == "Test Item"  # type: ignore
+            assert item.name == "Test Item"
 
 
 class TestDatabaseInitialization:
@@ -256,28 +270,28 @@ class TestDatabaseInitialization:
             __tablename__ = "model1"
             field1 = db.Column(db.String(50))
 
-            def _can_read(self):
+            def _can_read(self) -> bool:
                 return True
 
-            def _can_write(self):
+            def _can_write(self) -> bool:
                 return True
 
             @classmethod
-            def _can_create(cls):
+            def _can_create(cls) -> bool:
                 return True
 
         class Model2(BaseModel):
             __tablename__ = "model2"
             field2 = db.Column(db.Integer)
 
-            def _can_read(self):
+            def _can_read(self) -> bool:
                 return True
 
-            def _can_write(self):
+            def _can_write(self) -> bool:
                 return True
 
             @classmethod
-            def _can_create(cls):
+            def _can_create(cls) -> bool:
                 return True
 
         with app.app_context():
@@ -298,7 +312,7 @@ class TestDatabaseInitialization:
 class TestBaseModelPermissions:
     """Tests for BaseModel permission system."""
 
-    def test_permission_methods_exist(self, test_model: type[BaseModel]) -> None:
+    def test_permission_methods_exist(self, test_model: type[Product]) -> None:
         """Test that permission methods are defined."""
         assert hasattr(test_model, "_can_read")
         assert hasattr(test_model, "_can_write")
@@ -307,12 +321,12 @@ class TestBaseModelPermissions:
         assert hasattr(test_model, "can_write")
         assert hasattr(test_model, "can_create")
 
-    def test_bypass_perms_classmethod_exists(self, test_model: type[BaseModel]) -> None:
+    def test_bypass_perms_classmethod_exists(self, test_model: type[Product]) -> None:
         """Test that bypass_perms is available."""
         assert hasattr(test_model, "bypass_perms")
         assert callable(test_model.bypass_perms)
 
-    def test_is_writable_field_in_schema(self, app: Flask, test_model: type[BaseModel]) -> None:
+    def test_is_writable_field_in_schema(self, app: Flask, test_model: type[Product]) -> None:
         """Test that is_writable field is included in schema."""
         with app.app_context():
             with test_model.bypass_perms():
@@ -324,4 +338,4 @@ class TestBaseModelPermissions:
 
                 # is_writable should be in the output
                 assert "is_writable" in data
-                assert isinstance(data["is_writable"], bool)  # type: ignore
+                assert isinstance(data["is_writable"], bool)

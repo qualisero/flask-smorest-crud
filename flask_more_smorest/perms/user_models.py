@@ -186,6 +186,8 @@ class User(BasePermsModel):
     Simply inherit from this concrete User class and add your custom fields and methods.
     """
 
+    __tablename__ = "user"
+
     # Core authentication fields that all User models must have
     email: Mapped[str] = mapped_column(db.String(128), unique=True, nullable=False)
     password: Mapped[bytes | None] = mapped_column(db.LargeBinary(128), nullable=True)
