@@ -57,7 +57,12 @@ class BaseSchema(SQLAlchemyAutoSchema):
             for view_arg, val in args.items():
                 if view_arg not in self.fields or self.fields[view_arg].dump_only or data.get(view_arg) is not None:
                     continue
-                # TODO: Should we only replace if view_arg is required?
+                # TODO: Consider restricting automatic injection to fields marked as required.
+                #       This would ensure that only mandatory identifiers (for example, IDs coming
+                #       from the URL path) are populated from view_args, while optional fields
+                #       remain controlled by the client payload. Changing this behavior could
+                #       affect how partial updates are interpreted and may reduce surprising
+                #       cases where non-required fields are implicitly filled from the route.
                 data[view_arg] = val
 
         return data
@@ -415,9 +420,13 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         """
 
         state = sa.inspect(self)  # type: ignore
-        if getattr(state, "transient", False) or getattr(state, "pending", False):
+        if getattr(state, "transient", False):
             self._check_permission("create")
             self.on_before_create()
+        elif getattr(state, "pending", False):
+            # NOTE: pending state occurs when the object was added to the session
+            # but not yet committed. Treat as create, but without calling hook again.
+            self._check_permission("create")
         else:
             self._check_permission("write")
             self.on_before_update()

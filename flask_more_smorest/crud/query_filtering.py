@@ -10,6 +10,7 @@ filter parameters into SQLAlchemy query statements. It supports:
 from typing import Mapping
 
 import marshmallow as ma
+from marshmallow import validate
 from sqlalchemy import ColumnElement
 
 from flask_more_smorest.sqla.base_model import BaseModel
@@ -120,8 +121,18 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
         FilterSchema._declared_fields[field_name] = field_obj
 
     # Add optional pagination fields to allow them in query string without RAISE error
-    page_field = ma.fields.Integer(load_default=None, load_only=True, required=False)
-    page_size_field = ma.fields.Integer(load_default=None, load_only=True, required=False)
+    page_field = ma.fields.Integer(
+        load_default=None,
+        load_only=True,
+        required=False,
+        validate=validate.Range(min=1),
+    )
+    page_size_field = ma.fields.Integer(
+        load_default=None,
+        load_only=True,
+        required=False,
+        validate=validate.Range(min=1),
+    )
     setattr(FilterSchema, "page", page_field)
     setattr(FilterSchema, "page_size", page_size_field)
     FilterSchema._declared_fields["page"] = page_field

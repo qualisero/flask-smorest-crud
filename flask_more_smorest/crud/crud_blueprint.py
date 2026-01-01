@@ -68,9 +68,6 @@ class CRUDConfig:
     res_id_param_name: str
     methods: dict[CRUDMethod, MethodConfig]
 
-    if TYPE_CHECKING:
-        from flask_smorest.pagination import PaginationParameters
-
 
 class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
     """Blueprint subclass that automatically registers CRUD routes.
@@ -200,8 +197,7 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
         if isinstance(schema_or_name, str):
             try:
                 schema_module = import_module(resolved_schema_import_path)
-                if hasattr(schema_module, schema_or_name):
-                    schema_cls = getattr(schema_module, schema_or_name)
+                schema_cls = getattr(schema_module, schema_or_name)
             except (ImportError, AttributeError) as e:
                 raise ValueError(
                     f"Could not import schema '{schema_or_name}' from '{resolved_schema_import_path}'."
@@ -351,7 +347,9 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                         total_items = self._db_session.scalar(count_query)
                         pagination_parameters.item_count = total_items  # pyright: ignore[reportAttributeAccessIssue]
 
-                        # Apply limit/offset
+                        count_query = (
+                            sa.select(sa.func.count()).select_from(model_cls).filter_by(**kwargs).filter(*stmts)
+                        )
                         query = query.limit(pagination_parameters.page_size).offset(
                             pagination_parameters.page_size * (pagination_parameters.page - 1)
                         )

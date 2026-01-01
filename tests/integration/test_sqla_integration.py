@@ -41,8 +41,7 @@ class Product(BaseModel):
     def _can_write(self) -> bool:
         return True
 
-    @classmethod
-    def _can_create(cls) -> bool:
+    def _can_create(self) -> bool:
         return True
 
 
@@ -276,8 +275,7 @@ class TestDatabaseInitialization:
             def _can_write(self) -> bool:
                 return True
 
-            @classmethod
-            def _can_create(cls) -> bool:
+            def _can_create(self) -> bool:
                 return True
 
         class Model2(BaseModel):
@@ -290,8 +288,7 @@ class TestDatabaseInitialization:
             def _can_write(self) -> bool:
                 return True
 
-            @classmethod
-            def _can_create(cls) -> bool:
+            def _can_create(self) -> bool:
                 return True
 
         with app.app_context():

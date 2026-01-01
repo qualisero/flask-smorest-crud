@@ -232,6 +232,8 @@ def test_user(db_session: "scoped_session") -> Iterator[User]:
     db.session.add(u)
     db.session.commit()
     yield u
+    # Clean up:
+    u.delete()
 
 
 @pytest.fixture(scope="function")
@@ -242,10 +244,12 @@ def test_other_user(db_session: "scoped_session") -> Iterator[User]:
     db.session.add(u)
     db.session.commit()
     yield u
+    # Clean up:
+    u.delete()
 
 
 @pytest.fixture(scope="function")
-def admin_user(db_session: "scoped_session") -> User:
+def admin_user(db_session: "scoped_session") -> Iterator[User]:
     """Create a user with admin privileges scoped to a domain."""
 
     domain = Domain(name="primary-domain", display_name="Primary Domain")
@@ -255,7 +259,9 @@ def admin_user(db_session: "scoped_session") -> User:
     role = UserRole(user=admin, role=DefaultUserRole.ADMIN, domain=domain)
     db.session.add(role)
     db.session.commit()
-    return admin
+    yield admin
+    # Clean up:
+    admin.delete()
 
 
 @pytest.fixture(scope="function")

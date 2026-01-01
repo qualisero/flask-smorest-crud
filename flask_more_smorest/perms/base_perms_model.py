@@ -17,9 +17,6 @@ from werkzeug.exceptions import Unauthorized
 from ..error.exceptions import ForbiddenError, UnauthorizedError
 from ..sqla import BaseModel as SQLABaseModel
 
-# if TYPE_CHECKING:
-#     from flask import Flask  # noqa: F401
-
 logger = logging.getLogger(__name__)
 
 
@@ -102,7 +99,7 @@ class BasePermsModel(SQLABaseModel):
             raise UnauthorizedError("User must be authenticated")
         except RuntimeError as e:
             # Handle "Working outside of request context" errors
-            if "Working outside of request context" in str(e):
+            if not has_request_context():
                 raise UnauthorizedError("User must be authenticated")
             raise e
         except Exception as e:
