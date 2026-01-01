@@ -169,6 +169,6 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         # Trusted Publishing via OIDC - no token needed if configured on PyPI
-        # Falls back to token-based auth if OIDC is not set up
+        # If OIDC is not configured on PyPI, you must provide an API token via the "password" input
         verbose: true
         print-hash: true
