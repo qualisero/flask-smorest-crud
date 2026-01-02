@@ -386,11 +386,12 @@ User models integrate with the permission system:
    from flask_more_smorest.perms import (
        BasePermsModel,
        HasUserMixin,
-       UserOwnedResourceMixin,
+       UserOwnershipMixin,
    )
 
-   class UserDocument(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
+   class UserDocument(HasUserMixin, UserOwnershipMixin, BasePermsModel):
        # Table name automatically set to "user_document"
+       # Uses default: __delegate_to_user__ = False (simple ownership)
        
        title: Mapped[str] = mapped_column(db.String(200))
        content: Mapped[str] = mapped_column(db.Text)

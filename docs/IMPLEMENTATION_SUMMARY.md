@@ -44,8 +44,7 @@ Successfully implemented comprehensive Sphinx documentation for flask-more-smore
 - Return 404 vs 403 behavior
 - Pre-built permission mixins:
   - HasUserMixin
-  - UserCanReadWriteMixin
-  - UserOwnedResourceMixin
+  - UserOwnershipMixin (with __delegate_to_user__ flag for simple/delegated modes)
 - Bypassing permissions
 - Helper methods
 - Integration with CRUD blueprints

@@ -211,7 +211,7 @@ Focus on high-level, user-facing classes and modules, for example:
     - How `bypass_perms()` and `perms_disabled` work.
     - That `get_by` enforces permissions and honors `RETURN_404_ON_ACCESS_DENIED`.
 - Permission mixins in `flask_more_smorest.perms.model_mixins`:
-  - `HasUserMixin`, `UserCanReadWriteMixin`, `UserOwnedResourceMixin`, etc.
+  - `HasUserMixin`, `UserOwnershipMixin` (with `__delegate_to_user__` flag), etc.
 - CRUD blueprints and query filtering modules:
   - `flask_more_smorest.crud.crud_blueprint.CRUDBlueprint`
   - `flask_more_smorest.crud.query_filtering` helpers.
@@ -224,7 +224,7 @@ You can gradually add more narrative docs:
   - Installation, minimal app, first CRUD blueprint.
 - `permissions.rst`
   - How `BasePermsModel` works.
-  - Using `User`/roles, `UserCanReadWriteMixin`, and `UserOwnedResourceMixin`.
+  - Using `User`/roles and `UserOwnershipMixin` (simple and delegated modes).
 - `crud.rst`
   - Configuring `CRUDBlueprint`, filters, pagination, and operationIds.
 - `user-models.rst`
