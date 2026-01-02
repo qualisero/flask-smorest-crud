@@ -2,7 +2,10 @@
 
 from flask.views import MethodView
 
-from flask_more_smorest.blueprint_operationid import HTTP_METHOD_OPERATION_MAP, BlueprintOperationIdMixin
+from flask_more_smorest.blueprint_operationid import (
+    HTTP_METHOD_OPERATION_MAP,
+    BlueprintOperationIdMixin,
+)
 
 
 class TestBlueprintOperationIdMixin:

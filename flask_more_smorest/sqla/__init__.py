@@ -6,7 +6,12 @@ including the database instance, base model, and migration utilities.
 
 from .base_model import BaseModel
 from .database import db, init_db
-from .migrations import create_migration, downgrade_database, init_migrations, upgrade_database
+from .migrations import (
+    create_migration,
+    downgrade_database,
+    init_migrations,
+    upgrade_database,
+)
 
 __all__ = [
     "BaseModel",

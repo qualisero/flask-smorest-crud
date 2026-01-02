@@ -12,9 +12,23 @@ from ..crud.crud_blueprint import MethodConfig
 from .api import Api
 from .base_perms_model import BasePermsModel
 from .jwt import init_jwt
-from .model_mixins import HasUserMixin, ProfileMixin, SoftDeleteMixin, TimestampMixin, UserOwnershipMixin
+from .model_mixins import (
+    HasUserMixin,
+    ProfileMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UserOwnershipMixin,
+)
 from .perms_blueprint import PermsBlueprintMixin
-from .user_models import Domain, Token, User, UserRole, UserSetting, current_user, get_current_user_id
+from .user_models import (
+    Domain,
+    Token,
+    User,
+    UserRole,
+    UserSetting,
+    current_user,
+    get_current_user_id,
+)
 
 
 class CRUDBlueprint(CRUDBlueprintBase, PermsBlueprintMixin, BlueprintOperationIdMixin):

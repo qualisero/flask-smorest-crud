@@ -63,9 +63,9 @@ Thank you for your interest in contributing! This document outlines the process 
 
 5. **Run linting and formatting**:
    ```bash
-   poetry run black flast-more-smorest/ tests/
-   poetry run flake8 flast-more-smorest/ tests/
-   poetry run mypy flast-more-smorest/
+   poetry run ruff format flask-more-smorest/ tests/
+   poetry run ruff check flask-more-smorest/ tests/
+   poetry run mypy flask-more-smorest/
    ```
 
 6. **Commit your changes**:
@@ -77,7 +77,7 @@ Thank you for your interest in contributing! This document outlines the process 
 ### Code Style Guidelines
 
 - **Follow PEP 8** for Python code style
-- **Use Black** for code formatting (line length: 120)
+- **Use Ruff** for code formatting and linting (line length: 120)
 - **Add type hints** for all new functions and classes
 - **Write docstrings** using Google style for all public APIs
 - **Use meaningful variable and function names**

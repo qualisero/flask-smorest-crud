@@ -105,7 +105,10 @@ class ApiException(Exception):
 
             try:
                 if user_id := get_current_user_id():
-                    debug_context["user"] = {"id": user_id, "roles": [r.role for r in current_user.roles]}
+                    debug_context["user"] = {
+                        "id": user_id,
+                        "roles": [r.role for r in current_user.roles],
+                    }
                 else:
                     debug_context["user"] = {
                         "id": None,

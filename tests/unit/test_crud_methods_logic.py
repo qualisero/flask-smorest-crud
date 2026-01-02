@@ -345,7 +345,17 @@ def test_empty_methods_list(app: Flask) -> None:
         schema=TestModelEmpty.Schema,
         methods=[],
     )._build_config(
-        "test_empty", __name__, TestModelEmpty, TestModelEmpty.Schema, None, None, "id", None, [], None, None
+        "test_empty",
+        __name__,
+        TestModelEmpty,
+        TestModelEmpty.Schema,
+        None,
+        None,
+        "id",
+        None,
+        [],
+        None,
+        None,
     )
 
     assert len(config.methods) == 0

@@ -88,7 +88,9 @@ class BlueprintOperationIdMixin(Blueprint):
             # Use functools.wraps to preserve the function signature
             return functools.wraps(func)(decorated_func)
 
-        def _route(class_or_func: type["MethodView"] | Callable) -> type["MethodView"] | Callable:
+        def _route(
+            class_or_func: type["MethodView"] | Callable,
+        ) -> type["MethodView"] | Callable:
             """Add operationId to the route's methods.
 
             Args:

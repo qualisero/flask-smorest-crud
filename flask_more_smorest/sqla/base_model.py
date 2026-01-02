@@ -14,7 +14,14 @@ import sqlalchemy as sa
 from flask import request
 from marshmallow import fields, pre_load
 from marshmallow_sqlalchemy import ModelConverter, SQLAlchemyAutoSchema
-from sqlalchemy.orm import DeclarativeMeta, Mapped, MapperProperty, class_mapper, make_transient, mapped_column
+from sqlalchemy.orm import (
+    DeclarativeMeta,
+    Mapped,
+    MapperProperty,
+    class_mapper,
+    make_transient,
+    mapped_column,
+)
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.state import InstanceState
 
@@ -192,7 +199,11 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         sort_order=-10,
     )
     created_at: Mapped[dt.datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, default=dt.datetime.now, server_default=sa.func.now(), sort_order=10
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=dt.datetime.now,
+        server_default=sa.func.now(),
+        sort_order=10,
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         sa.DateTime(timezone=True),

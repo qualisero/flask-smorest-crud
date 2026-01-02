@@ -313,7 +313,12 @@ class TestMaximalFeatureIntegration:
 
         # Create 15 articles
         for i in range(15):
-            article = Article(title=f"Page Article {i}", content="Content", published=True, author_id=test_user.id)
+            article = Article(
+                title=f"Page Article {i}",
+                content="Content",
+                published=True,
+                author_id=test_user.id,
+            )
             db.session.add(article)
         db.session.commit()
 
@@ -394,9 +399,24 @@ class TestMaximalFeatureIntegration:
         """Test filtering functionality on articles."""
         # Create multiple articles
         articles_data = [
-            {"title": "Published Article 1", "content": "Content 1", "published": True, "author_id": test_user.id},
-            {"title": "Published Article 2", "content": "Content 2", "published": True, "author_id": test_user.id},
-            {"title": "Draft Article", "content": "Content 3", "published": False, "author_id": test_user.id},
+            {
+                "title": "Published Article 1",
+                "content": "Content 1",
+                "published": True,
+                "author_id": test_user.id,
+            },
+            {
+                "title": "Published Article 2",
+                "content": "Content 2",
+                "published": True,
+                "author_id": test_user.id,
+            },
+            {
+                "title": "Draft Article",
+                "content": "Content 3",
+                "published": False,
+                "author_id": test_user.id,
+            },
         ]
 
         for data in articles_data:
@@ -449,11 +469,21 @@ class TestMaximalFeatureIntegration:
         """Test permission system on models."""
 
         # Create a published article (readable by anyone)
-        published_article = Article(title="Published", content="Public content", published=True, author_id=test_user.id)
+        published_article = Article(
+            title="Published",
+            content="Public content",
+            published=True,
+            author_id=test_user.id,
+        )
         published_article.save()
 
         # Create a draft article (not published)
-        draft_article = Article(title="Draft", content="Private content", published=False, author_id=test_user.id)
+        draft_article = Article(
+            title="Draft",
+            content="Private content",
+            published=False,
+            author_id=test_user.id,
+        )
         draft_article.save()
 
         # Published article should be readable by anyone
@@ -523,7 +553,12 @@ class TestMaximalFeatureIntegration:
     def test_uuid_primary_keys(self, db_session: "scoped_session", test_user: User) -> None:
         """Test that models use UUID primary keys."""
 
-        article = Article(title="UUID Test", content="Testing UUID", published=True, author_id=test_user.id)
+        article = Article(
+            title="UUID Test",
+            content="Testing UUID",
+            published=True,
+            author_id=test_user.id,
+        )
         article.save()
 
         # ID should be a UUID
@@ -660,7 +695,12 @@ class TestMaximalFeatureIntegration:
     def test_get_clone_creates_distinct_record(self, db_session: "scoped_session", test_user: User) -> None:
         """BaseModel.get_clone should produce a detached copy with new UUID."""
 
-        article = Article(title="Original", content="Original content", published=True, author_id=test_user.id)
+        article = Article(
+            title="Original",
+            content="Original content",
+            published=True,
+            author_id=test_user.id,
+        )
         article.save()
         original_id = article.id
 
@@ -682,7 +722,12 @@ class TestMaximalFeatureIntegration:
         """User cannot update an article they don't own."""
 
         # User A creates article
-        article = Article(title="My Article", content="Content", published=True, author_id=test_user.id)
+        article = Article(
+            title="My Article",
+            content="Content",
+            published=True,
+            author_id=test_user.id,
+        )
         article.save()
 
         # User B tries to update via API (PATCH)
@@ -699,7 +744,12 @@ class TestMaximalFeatureIntegration:
     ) -> None:
         """User cannot delete an article they don't own."""
 
-        article = Article(title="My Article", content="Content", published=True, author_id=test_user.id)
+        article = Article(
+            title="My Article",
+            content="Content",
+            published=True,
+            author_id=test_user.id,
+        )
         article.save()
 
         # User B tries to delete via API
@@ -715,7 +765,12 @@ class TestMaximalFeatureIntegration:
     ) -> None:
         """Admin can update/delete articles owned by others."""
 
-        article = Article(title="User Article", content="Content", published=True, author_id=test_user.id)
+        article = Article(
+            title="User Article",
+            content="Content",
+            published=True,
+            author_id=test_user.id,
+        )
         article.save()
 
         # Admin updates

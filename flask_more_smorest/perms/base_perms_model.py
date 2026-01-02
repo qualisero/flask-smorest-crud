@@ -247,10 +247,16 @@ class BasePermsModel(SQLABaseModel):
             if current_user.is_admin:
                 return True
         except (exceptions.JWTExtendedException, Unauthorized):
-            logger.debug("JWT verification failed or unauthorized when checking admin status", exc_info=True)
+            logger.debug(
+                "JWT verification failed or unauthorized when checking admin status",
+                exc_info=True,
+            )
             return False
         except RuntimeError as exc:
-            logger.debug("Runtime error during admin check (likely outside request context): %s", exc)
+            logger.debug(
+                "Runtime error during admin check (likely outside request context): %s",
+                exc,
+            )
             return False
         except Exception as exc:  # pragma: no cover - defensive guard
             logger.warning("Unexpected error during admin check: %s", exc, exc_info=True)

@@ -481,7 +481,8 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                         **kwargs: Any,
                     ) -> Sequence[BaseModel]:
                         """Fetch all resources.
-                        kwargs might contains path parameters to filter by (eg /user/<uuid:user_id>/roles/)"""
+                        kwargs might contains path parameters to filter by (eg /user/<uuid:user_id>/roles/)
+                        """
 
                         stmts = get_statements_from_filters(filters, model=model_cls)
                         base_query = sa.select(model_cls).filter_by(**kwargs).filter(*stmts)
@@ -501,7 +502,10 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                 if CRUDMethod.POST in config.methods:
 
                     @self.arguments(config.methods[CRUDMethod.POST].get("schema", schema_cls))
-                    @self.response(HTTPStatus.OK, config.methods[CRUDMethod.POST].get("schema", schema_cls))
+                    @self.response(
+                        HTTPStatus.OK,
+                        config.methods[CRUDMethod.POST].get("schema", schema_cls),
+                    )
                     @self.doc(
                         responses={
                             HTTPStatus.NOT_FOUND: {"description": f"{config.name} resource not found"},
@@ -510,7 +514,9 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                         operationId=f"create{config.model_name}",
                     )
                     def post(
-                        _self, new_object: BaseModel, **kwargs: str | int | float | bool | bytes | None
+                        _self,
+                        new_object: BaseModel,
+                        **kwargs: str | int | float | bool | bytes | None,
                     ) -> BaseModel:
                         """Create and return new resource."""
                         new_object.update(commit=True, **kwargs)
@@ -518,10 +524,16 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                         return new_object
 
             self._configure_endpoint(
-                GenericIndex, "get", f"Fetch all {config.name} resources.", config.methods.get(CRUDMethod.INDEX, {})
+                GenericIndex,
+                "get",
+                f"Fetch all {config.name} resources.",
+                config.methods.get(CRUDMethod.INDEX, {}),
             )
             self._configure_endpoint(
-                GenericIndex, "post", f"Create and return new {config.name}.", config.methods.get(CRUDMethod.POST, {})
+                GenericIndex,
+                "post",
+                f"Create and return new {config.name}.",
+                config.methods.get(CRUDMethod.POST, {}),
             )
             self.route("")(GenericIndex)
 
@@ -534,7 +546,10 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                     responses={HTTPStatus.NOT_FOUND: {"description": f"{config.name} not found"}},
                     operationId=f"get{config.model_name}",
                 )
-                @self.response(HTTPStatus.OK, config.methods[CRUDMethod.GET].get("schema", schema_cls))
+                @self.response(
+                    HTTPStatus.OK,
+                    config.methods[CRUDMethod.GET].get("schema", schema_cls),
+                )
                 def get(_self, **kwargs: Any) -> BaseModel:
                     """Fetch resource by ID."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
@@ -551,7 +566,10 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                     },
                     operationId=f"update{config.model_name}",
                 )
-                @self.response(HTTPStatus.OK, config.methods[CRUDMethod.PATCH].get("schema", schema_cls))
+                @self.response(
+                    HTTPStatus.OK,
+                    config.methods[CRUDMethod.PATCH].get("schema", schema_cls),
+                )
                 def patch(_self, payload: dict, **kwargs: str | int | uuid.UUID | bool | None) -> BaseModel:
                     """Update resource."""
                     kwargs[config.res_id_name] = kwargs.pop(config.res_id_param_name)
@@ -574,13 +592,22 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
                 raise NotImplementedError("PUT method is not implemented. Use PATCH instead.")
 
         self._configure_endpoint(
-            GenericCRUD, "get", f"Fetch {config.name} by ID.", config.methods.get(CRUDMethod.GET, {})
+            GenericCRUD,
+            "get",
+            f"Fetch {config.name} by ID.",
+            config.methods.get(CRUDMethod.GET, {}),
         )
         self._configure_endpoint(
-            GenericCRUD, "patch", f"Update {config.name} by ID.", config.methods.get(CRUDMethod.PATCH, {})
+            GenericCRUD,
+            "patch",
+            f"Update {config.name} by ID.",
+            config.methods.get(CRUDMethod.PATCH, {}),
         )
         self._configure_endpoint(
-            GenericCRUD, "delete", f"Delete {config.name} by ID.", config.methods.get(CRUDMethod.DELETE, {})
+            GenericCRUD,
+            "delete",
+            f"Delete {config.name} by ID.",
+            config.methods.get(CRUDMethod.DELETE, {}),
         )
 
         # Only register GenericCRUD if it has at least one method
