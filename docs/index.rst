@@ -46,6 +46,18 @@ Quick Example
 
 This automatically creates RESTful endpoints with filtering, pagination, and permission checks.
 
+.. note::
+
+   **Automatic Table Naming**: When using ``BaseModel`` or its subclasses 
+   (like ``BasePermsModel``, ``User``), you don't need to specify ``__tablename__``. 
+   SQLAlchemy automatically generates table names by converting your class name to snake_case:
+   
+   - ``User`` → ``user``
+   - ``UserProfile`` → ``user_profile``
+   - ``ArticleComment`` → ``article_comment``
+   
+   Only specify ``__tablename__`` if you need a custom table name.
+
 Documentation Contents
 ----------------------
 

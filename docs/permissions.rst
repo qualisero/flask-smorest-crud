@@ -26,8 +26,8 @@ BasePermsModel
    from sqlalchemy.orm import Mapped, mapped_column
 
    class Article(BasePermsModel):
-       __tablename__ = "articles"
-
+       # Table name automatically set to "article"
+       
        title: Mapped[str] = mapped_column(db.String(200), nullable=False)
        body: Mapped[str] = mapped_column(db.Text, nullable=False)
        published: Mapped[bool] = mapped_column(db.Boolean, default=False)
@@ -101,7 +101,7 @@ Adds a ``user_id`` foreign key and ``user`` relationship:
    from flask_more_smorest.perms import BasePermsModel, HasUserMixin
 
    class Article(HasUserMixin, BasePermsModel):
-       __tablename__ = "articles"
+       # Table name automatically set to "article"
        
        title: Mapped[str] = mapped_column(db.String(200))
        # user_id and user relationship automatically added
@@ -116,7 +116,7 @@ Allows authenticated users to read and write:
    from flask_more_smorest.perms import BasePermsModel, UserCanReadWriteMixin
 
    class Comment(UserCanReadWriteMixin, BasePermsModel):
-       __tablename__ = "comments"
+       # Table name automatically set to "comment"
        
        text: Mapped[str] = mapped_column(db.Text)
        # Any authenticated user can read and write
@@ -135,7 +135,7 @@ Users can only access their own resources:
    )
 
    class Note(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
-       __tablename__ = "notes"
+       # Table name automatically set to "note"
        
        content: Mapped[str] = mapped_column(db.Text)
        # Users can only read/write their own notes
@@ -161,7 +161,7 @@ You can combine multiple mixins:
        ProfileMixin, 
        BasePermsModel
    ):
-       __tablename__ = "user_profiles"
+       # Table name automatically set to "user_profile"
        
        bio: Mapped[str] = mapped_column(db.Text, nullable=True)
        # Has user relationship, ownership checks, and profile fields
@@ -271,7 +271,7 @@ Here's a complete example of a blog with permission controls:
    from sqlalchemy.orm import Mapped, mapped_column
 
    class Article(HasUserMixin, BasePermsModel):
-       __tablename__ = "articles"
+       # Table name automatically set to "article"
 
        title: Mapped[str] = mapped_column(db.String(200), nullable=False)
        body: Mapped[str] = mapped_column(db.Text, nullable=False)
@@ -299,10 +299,10 @@ Here's a complete example of a blog with permission controls:
 
 
    class Comment(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
-       __tablename__ = "comments"
+       # Table name automatically set to "comment"
 
        article_id: Mapped[uuid.UUID] = mapped_column(
-           db.ForeignKey("articles.id"), nullable=False
+           db.ForeignKey("article.id"), nullable=False
        )
        text: Mapped[str] = mapped_column(db.Text, nullable=False)
 

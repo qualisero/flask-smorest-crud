@@ -73,7 +73,8 @@ Use ``BaseModel`` to create models with automatic features:
    from sqlalchemy.orm import Mapped, mapped_column
 
    class User(BaseModel):
-       __tablename__ = "users"
+       # __tablename__ is automatically set to "user" (snake_case of class name)
+       # You can override it if needed: __tablename__ = "custom_users"
 
        username: Mapped[str] = mapped_column(db.String(80), unique=True, nullable=False)
        email: Mapped[str] = mapped_column(db.String(120), unique=True, nullable=False)
@@ -85,6 +86,18 @@ Use ``BaseModel`` to create models with automatic features:
 - Timestamps (``created_at``, ``updated_at``)
 - CRUD helper methods (``save()``, ``update()``, ``delete()``, ``get_by()``, ``get_by_or_404()``)
 - Automatic Marshmallow schema generation (``User.Schema``)
+- **Automatic table naming** (class name converted to snake_case)
+
+.. note::
+   
+   The ``__tablename__`` attribute is **optional**. SQLAlchemy automatically generates 
+   table names by converting your class name to snake_case. For example:
+   
+   - ``User`` → ``user``
+   - ``UserProfile`` → ``user_profile``
+   - ``ArticleComment`` → ``article_comment``
+   
+   Only specify ``__tablename__`` if you need a custom table name.
 
 Controlling CRUD Endpoints
 ---------------------------

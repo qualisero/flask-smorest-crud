@@ -236,7 +236,8 @@ Basic Extension:
    from sqlalchemy.orm import Mapped, mapped_column
 
    class Employee(User):
-       __tablename__ = "employees"
+       # Table name automatically set to "employee"
+       # Override if needed: __tablename__ = "employees"
        
        employee_id: Mapped[str] = mapped_column(
            db.String(32), unique=True, nullable=False
@@ -251,7 +252,7 @@ With Profile Mixin:
    from flask_more_smorest.perms import User, ProfileMixin
 
    class Customer(ProfileMixin, User):
-       __tablename__ = "customers"
+       # Table name automatically set to "customer"
        
        loyalty_points: Mapped[int] = mapped_column(db.Integer, default=0)
        # ProfileMixin adds: first_name, last_name, phone, address, etc.
@@ -263,7 +264,7 @@ With Timestamps Mixin:
    from flask_more_smorest.perms import User, TimestampMixin
 
    class Member(TimestampMixin, User):
-       __tablename__ = "members"
+       # Table name automatically set to "member"
        
        membership_level: Mapped[str] = mapped_column(db.String(20))
        # TimestampMixin adds: created_at, updated_at
@@ -276,7 +277,7 @@ Multi-Tenant Users:
    import uuid
 
    class TenantUser(HasDomainMixin, User):
-       __tablename__ = "tenant_users"
+       # Table name automatically set to "tenant_user"
        
        # HasDomainMixin adds domain_id and domain relationship
        # for multi-tenant applications
@@ -291,7 +292,8 @@ Profile Mixin
    from flask_more_smorest.perms import ProfileMixin, User
 
    class UserProfile(ProfileMixin, User):
-       __tablename__ = "user_profiles"
+       # Table name automatically set to "user_profile"
+       pass
 
 Fields added by ProfileMixin:
 
@@ -319,14 +321,14 @@ Use ``HasDomainMixin`` for multi-tenant applications:
 
    # Domain model (tenant)
    class Organization(BasePermsModel):
-       __tablename__ = "organizations"
+       # Table name automatically set to "organization"
        
        name: Mapped[str] = mapped_column(db.String(200))
        slug: Mapped[str] = mapped_column(db.String(100), unique=True)
 
    # User with domain
    class OrgUser(HasDomainMixin, User):
-       __tablename__ = "org_users"
+       # Table name automatically set to "org_user"
        
        # Automatically adds:
        # - domain_id: UUID foreign key
@@ -334,7 +336,7 @@ Use ``HasDomainMixin`` for multi-tenant applications:
 
    # Resource scoped to domain
    class OrgDocument(HasDomainMixin, BasePermsModel):
-       __tablename__ = "org_documents"
+       # Table name automatically set to "org_document"
        
        title: Mapped[str] = mapped_column(db.String(200))
        # domain_id automatically added
@@ -388,7 +390,7 @@ User models integrate with the permission system:
    )
 
    class UserDocument(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
-       __tablename__ = "user_documents"
+       # Table name automatically set to "user_document"
        
        title: Mapped[str] = mapped_column(db.String(200))
        content: Mapped[str] = mapped_column(db.Text)
