@@ -235,18 +235,21 @@ Permission Models provide several helper methods:
 
 .. code-block:: python
 
+   from flask_more_smorest.perms.user_models import get_current_user_id
+
    # Check if current user is admin
-   if article.is_current_user_admin():
+   if critter.is_current_user_admin():
        # Do admin stuff
        pass
 
-   # Check if current user is the owner
-   if article.is_current_user_owner():
+   # Check if current user is the owner (for HasUserMixin models)
+   if critter.user_id == get_current_user_id():
        # User owns this resource
        pass
 
-   # Get current user from JWT
-   current_user = article.get_current_user()
+   # Get current user from JWT (Flask-JWT-Extended proxy)
+   from flask_more_smorest.perms import current_user
+   user = current_user  # already loaded by JWT
 
 Integration with CRUD Blueprints
 ---------------------------------
@@ -258,10 +261,10 @@ CRUD Blueprints automatically enforce permissions:
    from flask_more_smorest.perms import CRUDBlueprint
 
    # All operations will enforce permissions
-   articles = CRUDBlueprint(
-       "articles",
+   critters = CRUDBlueprint(
+       "critters",
        __name__,
-       model="Article",  # Must be a BasePermsModel subclass
+       model="Critter",  # Must be a BasePermsModel subclass
        schema="ArticleSchema",
    )
 
@@ -299,15 +302,19 @@ Here's a complete example of a blog with permission controls:
        is_adoptable: Mapped[bool] = mapped_column(db.Boolean, default=True)
 
        def _can_read(self) -> bool:
+           from flask_more_smorest.perms.user_models import get_current_user_id
+           
            # Anyone can read adoptable critters
            if self.is_adoptable:
                return True
            # Owners and admins can see non-adoptable ones
-           return self.is_current_user_owner() or self.is_current_user_admin()
+           return self.user_id == get_current_user_id() or self.is_current_user_admin()
 
        def _can_write(self) -> bool:
+           from flask_more_smorest.perms.user_models import get_current_user_id
+           
            # Only owner or admin can edit
-           return self.is_current_user_owner() or self.is_current_user_admin()
+           return self.user_id == get_current_user_id() or self.is_current_user_admin()
 
        def _can_delete(self) -> bool:
            # Only admin can delete
@@ -315,22 +322,24 @@ Here's a complete example of a blog with permission controls:
 
        @classmethod
        def _can_create(cls) -> bool:
-           # Any authenticated user can create articles
-           return cls.get_current_user() is not None
+           # Any authenticated user can create critters
+           from flask_more_smorest.perms import current_user
+           return current_user is not None
 
 
-   class Comment(HasUserMixin, UserOwnershipMixin, BasePermsModel):
-       # Table name automatically set to "comment"
+   class Toy(HasUserMixin, UserOwnershipMixin, BasePermsModel):
+       # Table name automatically set to "toy"
        # Uses default: __delegate_to_user__ = False (simple ownership)
 
-       article_id: Mapped[uuid.UUID] = mapped_column(
-           db.ForeignKey("article.id"), nullable=False
+       critter_id: Mapped[uuid.UUID] = mapped_column(
+           db.ForeignKey("critter.id"), nullable=False
        )
-       text: Mapped[str] = mapped_column(db.Text, nullable=False)
+       name: Mapped[str] = mapped_column(db.String(100), nullable=False)
+       color: Mapped[str] = mapped_column(db.String(50))
 
        # UserOwnershipMixin provides:
-       # - Users can only read/write their own comments
-       # - Admins can access all comments
+       # - Users can only read/write their own toys
+       # - Admins can access all toys
 
 Next Steps
 ----------
