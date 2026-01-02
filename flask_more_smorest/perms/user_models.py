@@ -16,16 +16,19 @@ The User class is a concrete model that can be extended through inheritance:
 ```python
 from flask_more_smorest.perms import User
 
-# Extend User with additional fields
+# Extend User with additional fields (single table inheritance)
 class EmployeeUser(User):
-    __tablename__ = "employee_users"  # Custom table name
-
     employee_id: Mapped[str] = mapped_column(db.String(50), unique=True)
     department: Mapped[str] = mapped_column(db.String(100))
 
     def get_employee_permissions(self):
         # Custom method for employee-specific logic
         return ["read_timesheet", "submit_expenses"]
+
+# Or use separate table (multi-table inheritance) by specifying __tablename__
+class ContractorUser(User):
+    __tablename__ = "contractor_users"  # Separate table
+    contractor_id: Mapped[str] = mapped_column(db.String(50))
 ```
 
 **UserRole Customization**:
@@ -40,9 +43,8 @@ class EmployeeRole(str, enum.Enum):
     DEPARTMENT_HEAD = "department_head"
     EMPLOYEE = "employee"
 
+# Inherits from UserRole - uses same table
 class EmployeeUserRole(UserRole):
-    __tablename__ = "employee_user_roles"
-
     # Custom methods for employee role logic
     def get_employee_permissions(self):
         return self.role
@@ -150,12 +152,13 @@ class User(BasePermsModel):
     from sqlalchemy.orm import Mapped, mapped_column
 
     class CustomUser(User):
-        __tablename__ = "custom_users"  # Use different table name
+        # Uses "user" table (single table inheritance)
+        # Specify __tablename__ = "custom_users" for separate table
 
         # Add custom fields
-        bio: Mapped[str] = mapped_column(db.String(500), nullable=True)
-        age: Mapped[int] = mapped_column(db.Integer, nullable=True)
-        phone: Mapped[str] = mapped_column(db.String(20), nullable=True)
+        bio: Mapped[str | None] = mapped_column(db.String(500), nullable=True)
+        age: Mapped[int | None] = mapped_column(db.Integer, nullable=True)
+        phone: Mapped[str | None] = mapped_column(db.String(20), nullable=True)
 
         # Override permission methods if needed
         def _can_write(self) -> bool:
@@ -325,8 +328,6 @@ class User(BasePermsModel):
 class Domain(BasePermsModel):
     """Distinct domains within the app for multi-tenant support."""
 
-    __tablename__ = "domains"
-
     name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     active: Mapped[bool] = mapped_column(db.Boolean, default=True, nullable=False)
@@ -375,7 +376,7 @@ class UserRole(BasePermsModel):
     user_id: Mapped[uuid.UUID] = mapped_column(sa.Uuid(as_uuid=True), db.ForeignKey(User.id), nullable=False)
     domain_id: Mapped[uuid.UUID | None] = mapped_column(
         sa.Uuid(as_uuid=True),
-        db.ForeignKey("domains.id"),
+        db.ForeignKey("domain.id"),
         nullable=True,
         default=None,
     )

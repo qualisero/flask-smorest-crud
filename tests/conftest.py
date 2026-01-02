@@ -60,8 +60,6 @@ def simple_user_model() -> type[BaseModel]:
     class SimpleUser(BaseModel):
         """Test user model."""
 
-        __tablename__ = "simple_users"
-
         username = db.Column(db.String(80), unique=True, nullable=False)
         email = db.Column(db.String(120), unique=True, nullable=False)
         is_active = db.Column(db.Boolean, default=True)

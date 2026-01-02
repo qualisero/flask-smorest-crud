@@ -97,8 +97,8 @@ from flask_more_smorest.sqla import db
 from sqlalchemy.orm import Mapped, mapped_column
 
 class Article(BaseModel):
-    __tablename__ = "article"
-
+    # __tablename__ auto-generated as "article"
+    
     title: Mapped[str] = mapped_column(db.String(200), nullable=False)
     body: Mapped[str] = mapped_column(db.Text, nullable=False)
 
@@ -130,7 +130,8 @@ from flask_more_smorest.sqla import db
 from sqlalchemy.orm import Mapped, mapped_column
 
 class Employee(User, ProfileMixin, TimestampMixin):
-    __tablename__ = "employee"
+    # Inherits User's table (single table inheritance)
+    # Use __tablename__ = "employees" for separate table
     employee_id: Mapped[str] = mapped_column(db.String(32), unique=True)
 ```
 

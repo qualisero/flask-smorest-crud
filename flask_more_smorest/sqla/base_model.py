@@ -177,7 +177,7 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
 
     Example:
         >>> class Article(BaseModel):
-        ...     __tablename__ = 'articles'
+        ...     # __tablename__ auto-generated as "article"
         ...     title: Mapped[str] = mapped_column(sa.String(200))
         ...     content: Mapped[str] = mapped_column(sa.Text)
     """
