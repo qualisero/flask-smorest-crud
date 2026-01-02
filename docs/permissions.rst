@@ -109,7 +109,7 @@ Adds a ``user_id`` foreign key and ``user`` relationship:
 UserCanReadWriteMixin
 ^^^^^^^^^^^^^^^^^^^^^
 
-Allows authenticated users to read and write:
+Allows authenticated users to read and write their own resources (simple ownership check):
 
 .. code-block:: python
 
@@ -119,12 +119,17 @@ Allows authenticated users to read and write:
        # Table name automatically set to "comment"
        
        text: Mapped[str] = mapped_column(db.Text)
-       # Any authenticated user can read and write
+       # Users can read/write only their own comments (simple user_id check)
+       # Admins can access all comments (admin bypass in BasePermsModel)
+
+**Implementation**: Checks if ``user_id == current_user_id``
+
+**Use for**: Simple user-owned resources (notes, posts, comments)
 
 UserOwnedResourceMixin
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Users can only access their own resources:
+Users can only access their own resources (delegates to user's permission methods):
 
 .. code-block:: python
 
@@ -138,8 +143,23 @@ Users can only access their own resources:
        # Table name automatically set to "note"
        
        content: Mapped[str] = mapped_column(db.Text)
-       # Users can only read/write their own notes
-       # Admins can access all notes
+       # Delegates to user's _can_write() and _can_read() methods
+       # If user has custom permission logic, resource inherits it
+       # Admins can access all notes (admin bypass in BasePermsModel)
+
+**Implementation**: Calls ``self.user._can_write()`` to delegate to user's permissions
+
+**Use for**: Resources that extend the user (tokens, settings, API keys)
+
+.. note::
+
+   **Key Difference**:
+   
+   - ``UserCanReadWriteMixin``: Simple ownership check (``user_id == current_user_id``)
+   - ``UserOwnedResourceMixin``: Delegates to user's permission methods (inherits user's logic)
+   
+   Both benefit from the **admin bypass** built into ``BasePermsModel``, so admins can 
+   access all resources regardless of ownership.
 
 Combining Mixins
 ^^^^^^^^^^^^^^^^
