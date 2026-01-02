@@ -120,75 +120,83 @@ class HasUserMixin:
         return relationship("User", lazy="joined", foreign_keys=[getattr(cls, "user_id")], backref=backref_arg)
 
 
-class UserCanReadWriteMixin(HasUserMixin):
-    """Mixin to add user-based read/write permissions.
+class UserOwnershipMixin(HasUserMixin):
+    """Unified mixin for user-owned resources with configurable permission delegation.
 
-    Combines HasUserMixin with permission methods that allow users
-    to read and write only their own records.
+    This mixin provides user ownership with two modes:
 
-    Note:
-        This mixin enforces __user_id_nullable__ = False to ensure
-        automatic ownership assignment. Without an owner, the permission
-        checks would always fail.
+    1. **Simple Ownership** (default, ``__delegate_to_user__ = False``):
+       - Direct user_id comparison: ``user_id == current_user_id``
+       - Best for: Notes, posts, comments, documents
 
-    Example:
-        >>> class Note(BasePermsModel, UserCanReadWriteMixin):
+    2. **Delegated Permissions** (``__delegate_to_user__ = True``):
+       - Calls user's permission methods: ``self.user._can_write()``
+       - Best for: Tokens, settings, API keys (resources that extend the user)
+
+    Both modes benefit from the admin bypass built into BasePermsModel.
+
+    Attributes:
+        __delegate_to_user__: If True, delegate to user's permission methods.
+                             If False (default), use simple user_id comparison.
+        __user_id_nullable__: If False (default), requires owner on creation.
+
+    Example (Simple Ownership):
+        >>> class Note(UserOwnershipMixin, BasePermsModel):
+        ...     # Uses default: __delegate_to_user__ = False
         ...     content: Mapped[str] = mapped_column(sa.Text)
+        ...     # Permission: user_id == current_user_id
+
+    Example (Delegated Permissions):
+        >>> class UserToken(UserOwnershipMixin, BasePermsModel):
+        ...     __delegate_to_user__ = True
+        ...     token: Mapped[str] = mapped_column(sa.String(500))
+        ...     # Permission: delegates to self.user._can_write()
     """
 
     __user_id_nullable__ = False
+    __delegate_to_user__ = False
 
     def _can_write(self) -> bool:
-        """User can write if they are the owner of the object.
+        """Check if current user can write this resource.
 
         Returns:
-            True if current user owns this record
+            True if user can write (based on delegation mode)
         """
-        from .user_models import get_current_user_id
+        if self.__delegate_to_user__:
+            # Delegate to user's permission method
+            return self.user._can_write()
+        else:
+            # Simple ownership check
+            from .user_models import get_current_user_id
 
-        return self.user_id == get_current_user_id()
+            return self.user_id == get_current_user_id()
 
     def _can_read(self) -> bool:
-        """User can read if they are the owner of the object.
+        """Check if current user can read this resource.
 
         Returns:
-            True if current user owns this record
+            True if user can read (based on delegation mode)
         """
-        from .user_models import get_current_user_id
+        if self.__delegate_to_user__:
+            # Delegate to user's permission method (via _can_write)
+            return self._can_write()
+        else:
+            # Simple ownership check
+            from .user_models import get_current_user_id
 
-        return self.user_id == get_current_user_id()
-
-
-class UserOwnedResourceMixin(HasUserMixin):
-    """Mixin for resources owned by users with permission delegation.
-
-    This mixin provides permission methods that delegate to the owning
-    user's permission methods. Used for resources like tokens and settings
-    that belong to a user and inherit the user's permissions.
-
-    Requires:
-        - A 'user' relationship to the User model
-
-    Example:
-        >>> class Token(BasePermsModel, UserOwnedResourceMixin):
-        ...     user_id: Mapped[uuid.UUID] = mapped_column(...)
-        ...     user: Mapped["User"] = relationship("User")
-    """
-
-    def _can_write(self) -> bool:
-        """Resource can be modified by its owner.
-
-        Returns:
-            True if the owning user has write permission
-        """
-        return self.user._can_write()
+            return self.user_id == get_current_user_id()
 
     def _can_create(self) -> bool:
-        """Resource can be created by its owner.
+        """Check if current user can create this resource.
 
         Returns:
-            True if the owning user has write permission
+            True if user can create (only used in delegation mode)
         """
+        if not self.__delegate_to_user__:
+            # Simple mode: use default behavior
+            return True
+
+        # Delegation mode: check user's permission
         if self.user_id:
             from .user_models import User
 
@@ -199,14 +207,6 @@ class UserOwnedResourceMixin(HasUserMixin):
 
             return user._can_write()
 
-        return self._can_write()
-
-    def _can_read(self) -> bool:
-        """Resource can be read by its owner.
-
-        Returns:
-            True if the owning user has write permission
-        """
         return self._can_write()
 
 

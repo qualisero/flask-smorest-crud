@@ -75,7 +75,7 @@ from ..error.exceptions import UnprocessableEntity
 from ..sqla import db
 from ..utils import check_password_hash, generate_password_hash
 from .base_perms_model import BasePermsModel
-from .model_mixins import UserOwnedResourceMixin
+from .model_mixins import UserOwnershipMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterator  # noqa: F401
@@ -461,8 +461,10 @@ class UserRole(BasePermsModel):
             return True
 
 
-class Token(UserOwnedResourceMixin, BasePermsModel):
+class Token(UserOwnershipMixin, BasePermsModel):
     """API tokens for user authentication."""
+
+    __delegate_to_user__ = True
 
     token: Mapped[str] = mapped_column(db.String(1024), nullable=False)
     description: Mapped[str | None] = mapped_column(db.String(64), nullable=True)
@@ -471,8 +473,10 @@ class Token(UserOwnedResourceMixin, BasePermsModel):
     revoked_at: Mapped[sa.DateTime | None] = mapped_column(sa.DateTime(), nullable=True)
 
 
-class UserSetting(UserOwnedResourceMixin, BasePermsModel):
+class UserSetting(UserOwnershipMixin, BasePermsModel):
     """User-specific key-value settings storage."""
+
+    __delegate_to_user__ = True
 
     key: Mapped[str] = mapped_column(db.String(80), nullable=False)
     value: Mapped[str | None] = mapped_column(db.String(1024), nullable=True)

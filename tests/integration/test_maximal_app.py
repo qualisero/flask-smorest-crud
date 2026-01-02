@@ -22,7 +22,7 @@ from flask_more_smorest import (
     TimestampMixin,
     Token,
     User,
-    UserCanReadWriteMixin,
+    UserOwnershipMixin,
     UserRole,
     UserSetting,
     db,
@@ -82,7 +82,7 @@ def api(maximal_app: Flask, db_session: "scoped_session") -> Api:
     return Api(maximal_app)
 
 
-class Article(UserCanReadWriteMixin, TimestampMixin, BasePermsModel):
+class Article(UserOwnershipMixin, TimestampMixin, BasePermsModel):
     """Article model demonstrating multiple features."""
 
     __user_field_name__ = "author_id"
@@ -98,7 +98,7 @@ class Article(UserCanReadWriteMixin, TimestampMixin, BasePermsModel):
         return self.published or self.can_write()
 
 
-class Comment(UserCanReadWriteMixin, TimestampMixin, BasePermsModel):
+class Comment(UserOwnershipMixin, TimestampMixin, BasePermsModel):
     """Comment model for articles."""
 
     __user_field_name__ = "author_id"

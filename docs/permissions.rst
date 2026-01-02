@@ -106,17 +106,19 @@ Adds a ``user_id`` foreign key and ``user`` relationship:
        title: Mapped[str] = mapped_column(db.String(200))
        # user_id and user relationship automatically added
 
-UserCanReadWriteMixin
-^^^^^^^^^^^^^^^^^^^^^
+UserOwnershipMixin
+^^^^^^^^^^^^^^^^^^
 
-Allows authenticated users to read and write their own resources (simple ownership check):
+Unified mixin for user-owned resources with two configurable modes:
+
+**Simple Ownership Mode** (default, ``__delegate_to_user__ = False``):
 
 .. code-block:: python
 
-   from flask_more_smorest.perms import BasePermsModel, UserCanReadWriteMixin
+   from flask_more_smorest.perms import BasePermsModel, UserOwnershipMixin
 
-   class Comment(UserCanReadWriteMixin, BasePermsModel):
-       # Table name automatically set to "comment"
+   class Comment(UserOwnershipMixin, BasePermsModel):
+       # Uses default: __delegate_to_user__ = False
        
        text: Mapped[str] = mapped_column(db.Text)
        # Users can read/write only their own comments (simple user_id check)
@@ -124,28 +126,25 @@ Allows authenticated users to read and write their own resources (simple ownersh
 
 **Implementation**: Checks if ``user_id == current_user_id``
 
-**Use for**: Simple user-owned resources (notes, posts, comments)
+**Use for**: Simple user-owned resources (notes, posts, comments, documents)
 
-UserOwnedResourceMixin
-^^^^^^^^^^^^^^^^^^^^^^
-
-Users can only access their own resources (delegates to user's permission methods):
+**Delegated Permissions Mode** (``__delegate_to_user__ = True``):
 
 .. code-block:: python
 
    from flask_more_smorest.perms import (
        BasePermsModel, 
        HasUserMixin, 
-       UserOwnedResourceMixin
+       UserOwnershipMixin
    )
 
-   class Note(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
-       # Table name automatically set to "note"
+   class UserToken(HasUserMixin, UserOwnershipMixin, BasePermsModel):
+       __delegate_to_user__ = True
        
-       content: Mapped[str] = mapped_column(db.Text)
+       token: Mapped[str] = mapped_column(db.String(500))
        # Delegates to user's _can_write() and _can_read() methods
        # If user has custom permission logic, resource inherits it
-       # Admins can access all notes (admin bypass in BasePermsModel)
+       # Admins can access all tokens (admin bypass in BasePermsModel)
 
 **Implementation**: Calls ``self.user._can_write()`` to delegate to user's permissions
 
@@ -153,13 +152,13 @@ Users can only access their own resources (delegates to user's permission method
 
 .. note::
 
-   **Key Difference**:
+   **Configuration Options**:
    
-   - ``UserCanReadWriteMixin``: Simple ownership check (``user_id == current_user_id``)
-   - ``UserOwnedResourceMixin``: Delegates to user's permission methods (inherits user's logic)
+   - ``__delegate_to_user__``: Set to ``True`` for delegated permissions, ``False`` for simple ownership (default: ``False``)
+   - ``__user_id_nullable__``: Set to ``True`` to allow nullable user_id (default: ``False``)
    
-   Both benefit from the **admin bypass** built into ``BasePermsModel``, so admins can 
-   access all resources regardless of ownership.
+   Both modes benefit from the **admin bypass** built into ``BasePermsModel``, 
+   so admins can access all resources regardless of ownership.
 
 Combining Mixins
 ^^^^^^^^^^^^^^^^
@@ -171,20 +170,20 @@ You can combine multiple mixins:
    from flask_more_smorest.perms import (
        BasePermsModel,
        HasUserMixin,
-       UserOwnedResourceMixin,
+       UserOwnershipMixin,
        ProfileMixin,
    )
 
    class UserProfile(
        HasUserMixin, 
-       UserOwnedResourceMixin, 
+       UserOwnershipMixin, 
        ProfileMixin, 
        BasePermsModel
    ):
-       # Table name automatically set to "user_profile"
+       __delegate_to_user__ = True  # Inherit user's permissions
        
        bio: Mapped[str] = mapped_column(db.Text, nullable=True)
-       # Has user relationship, ownership checks, and profile fields
+       # Has user relationship, delegated permissions, and profile fields
 
 Bypassing Permissions
 ---------------------
@@ -285,7 +284,7 @@ Here's a complete example of a blog with permission controls:
    from flask_more_smorest.perms import (
        BasePermsModel,
        HasUserMixin,
-       UserOwnedResourceMixin,
+       UserOwnershipMixin,
    )
    from flask_more_smorest.sqla import db
    from sqlalchemy.orm import Mapped, mapped_column
@@ -318,15 +317,16 @@ Here's a complete example of a blog with permission controls:
            return cls.get_current_user() is not None
 
 
-   class Comment(HasUserMixin, UserOwnedResourceMixin, BasePermsModel):
+   class Comment(HasUserMixin, UserOwnershipMixin, BasePermsModel):
        # Table name automatically set to "comment"
+       # Uses default: __delegate_to_user__ = False (simple ownership)
 
        article_id: Mapped[uuid.UUID] = mapped_column(
            db.ForeignKey("article.id"), nullable=False
        )
        text: Mapped[str] = mapped_column(db.Text, nullable=False)
 
-       # UserOwnedResourceMixin provides:
+       # UserOwnershipMixin provides:
        # - Users can only read/write their own comments
        # - Admins can access all comments
 

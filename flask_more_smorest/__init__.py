@@ -51,7 +51,7 @@ from .perms import Api, BasePermsModel, CRUDBlueprint
 from .perms.jwt import init_jwt
 
 # Import user model mixins
-from .perms.model_mixins import ProfileMixin, SoftDeleteMixin, TimestampMixin, UserCanReadWriteMixin
+from .perms.model_mixins import ProfileMixin, SoftDeleteMixin, TimestampMixin, UserOwnershipMixin
 from .perms.perms_blueprint import PermsBlueprintMixin as BlueprintAccessMixin
 
 # Import user models and authentication
@@ -97,7 +97,7 @@ __all__ = [
     "TimestampMixin",
     "ProfileMixin",
     "SoftDeleteMixin",
-    "UserCanReadWriteMixin",
+    "UserOwnershipMixin",
     # Migration system
     "init_migrations",
     "create_migration",

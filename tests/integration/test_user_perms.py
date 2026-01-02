@@ -3,7 +3,7 @@
 This test demonstrates:
 - Creating a CustomUser class that extends the package's User class
 - Testing user-related default tables (settings, tokens, roles)
-- Testing a model with UserCanReadWriteMixin for permission access
+- Testing a model with UserOwnershipMixin for permission access
 - Testing a model with custom permission rules
 """
 
@@ -30,7 +30,7 @@ from flask_more_smorest import (
 )
 from flask_more_smorest.error.exceptions import ForbiddenError
 from flask_more_smorest.perms.base_perms_model import BasePermsModel
-from flask_more_smorest.perms.model_mixins import UserCanReadWriteMixin
+from flask_more_smorest.perms.model_mixins import UserOwnershipMixin
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient
@@ -106,8 +106,8 @@ class CustomUser(User):
         return self.is_verified
 
 
-class Note(UserCanReadWriteMixin, BasePermsModel):
-    """Note model with UserCanReadWriteMixin.
+class Note(UserOwnershipMixin, BasePermsModel):
+    """Note model with UserOwnershipMixin.
 
     This model demonstrates user-owned resources where:
     - Users can only read their own notes
@@ -425,8 +425,8 @@ class TestUserRelatedTables:
         assert not regular_user.has_role(DefaultUserRole.ADMIN)
 
 
-class TestUserCanReadWriteMixin:
-    """Test Note model with UserCanReadWriteMixin."""
+class TestUserOwnershipMixin:
+    """Test Note model with UserOwnershipMixin."""
 
     def test_note_creation_and_ownership(self, db_session: "scoped_session", test_users: dict[str, uuid.UUID]) -> None:
         """Test that notes are created with proper ownership."""
