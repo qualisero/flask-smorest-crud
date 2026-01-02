@@ -6,7 +6,8 @@ of flask-more-smorest together, showing how streamlined and simple the setup can
 
 import datetime as dt
 import uuid
-from typing import TYPE_CHECKING, Callable, Iterator
+from collections.abc import Callable, Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 from flask import Flask
@@ -148,13 +149,13 @@ def blueprints() -> Iterator[dict[str, CRUDBlueprint]]:
 
     # Create mock modules for blueprint imports
     articles_module = types.ModuleType("mock_articles")
-    setattr(articles_module, "Article", Article)
-    setattr(articles_module, "ArticleSchema", Article.Schema)
+    articles_module.Article = Article
+    articles_module.ArticleSchema = Article.Schema
     sys.modules["mock_articles"] = articles_module
 
     comments_module = types.ModuleType("mock_comments")
-    setattr(comments_module, "Comment", Comment)
-    setattr(comments_module, "CommentSchema", Comment.Schema)
+    comments_module.Comment = Comment
+    comments_module.CommentSchema = Comment.Schema
     sys.modules["mock_comments"] = comments_module
 
     # Create blueprints - use defaults where possible
@@ -608,7 +609,7 @@ class TestMaximalFeatureIntegration:
     ) -> None:
         """Query parameters with __min/__from suffixes should filter results."""
 
-        base_time = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+        base_time = dt.datetime.now(dt.UTC).replace(microsecond=0)
         for idx in range(3):
             article = Article(
                 title=f"Range Article {idx}",

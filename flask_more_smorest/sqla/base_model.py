@@ -53,7 +53,7 @@ class BaseSchema(SQLAlchemyAutoSchema):
             The modified data dictionary with view_args injected
         """
 
-        if request and (args := getattr(request, "view_args")):
+        if request and (args := request.view_args):
             for view_arg, val in args.items():
                 if view_arg not in self.fields or self.fields[view_arg].dump_only or data.get(view_arg) is not None:
                     continue
@@ -124,7 +124,7 @@ class BaseModelMeta(DeclarativeMeta):
             },
         )
         # Cache it so it doesn't regenerate
-        setattr(cls, "Schema", schema_cls)
+        cls.Schema = schema_cls
 
         return schema_cls
 
@@ -511,7 +511,7 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         db.session.expunge(self)
 
         make_transient(self)
-        setattr(self, "id", None)
+        self.id = None  # type: ignore[assignment]
 
         return self
 

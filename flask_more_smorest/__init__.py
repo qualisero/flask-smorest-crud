@@ -55,9 +55,8 @@ from .perms.model_mixins import ProfileMixin, SoftDeleteMixin, TimestampMixin, U
 from .perms.perms_blueprint import PermsBlueprintMixin as BlueprintAccessMixin
 
 # Import user models and authentication
-from .perms.user_models import DefaultUserRole, Domain, Token, User, UserRole, UserSetting
+from .perms.user_models import DefaultUserRole, Domain, Token, User, UserRole, UserSetting, get_current_user_id
 from .perms.user_models import current_user as get_current_user
-from .perms.user_models import get_current_user_id
 
 # Import migration system
 # Import database and models

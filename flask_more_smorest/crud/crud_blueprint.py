@@ -7,10 +7,11 @@ with Marshmallow schemas.
 
 import enum
 import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from http import HTTPStatus
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Mapping, Sequence, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlalchemy as sa
 from flask.views import MethodView

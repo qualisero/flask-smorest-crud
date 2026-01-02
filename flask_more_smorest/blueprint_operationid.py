@@ -5,7 +5,8 @@ Blueprint to automatically generate OpenAPI operationId values for endpoints.
 """
 
 import functools
-from typing import Callable, Final
+from collections.abc import Callable
+from typing import Final
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
@@ -53,7 +54,7 @@ class BlueprintOperationIdMixin(Blueprint):
         Returns:
             Decorated route function or MethodView class
         """
-        wrapped: Callable[[type["MethodView"] | Callable], type["MethodView"] | Callable] = super().route(
+        wrapped: Callable[[type[MethodView] | Callable], type[MethodView] | Callable] = super().route(
             rule, *pargs, **kwargs
         )
 

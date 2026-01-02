@@ -8,7 +8,8 @@ This test demonstrates:
 """
 
 import uuid
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 import sqlalchemy as sa

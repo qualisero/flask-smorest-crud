@@ -5,9 +5,9 @@ permission checking functionality based on the current user context.
 """
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any, Callable, Self, cast
+from typing import Any, Self, cast
 
 import sqlalchemy as sa
 from flask import has_request_context

@@ -5,7 +5,8 @@ using up-to-date features from flask-smorest, SQLAlchemy, and marshmallow_sqlalc
 """
 
 import uuid
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 from apispec.ext.marshmallow import MarshmallowPlugin
