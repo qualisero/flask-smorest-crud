@@ -1,7 +1,7 @@
 # Flask-More-Smorest
 
-[![PyPI version](https://badge.fury.io/py/flask-more-smorest.svg)](https://badge.fury.io/py/flask-more-smorest)
-[![Python Support](https://img.shields.io/pypi/pyversions/flask-more-smorest.svg)](https://pypi.org/project/flask-more-smorest/)
+[![PyPI version](https://badge.fury.io/py/flask-more-smorest.svg?v=0.2.2)](https://badge.fury.io/py/flask-more-smorest)
+[![Python Support](https://img.shields.io/pypi/pyversions/flask-more-smorest.svg?v=0.2.2)](https://pypi.org/project/flask-more-smorest/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Flask-More-Smorest extends **Flask-Smorest** with batteries-included CRUD blueprints, SQLAlchemy helpers, and an opinionated user/permission system.
