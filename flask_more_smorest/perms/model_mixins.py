@@ -28,20 +28,39 @@ class HasUserMixin:
         - ``__user_field_name__``: custom attribute alias for ``user_id``
         - ``__user_relationship_name__``: custom alias for ``user``
         - ``__user_id_nullable__``: allow NULL owner IDs
+        - ``__user_backref_name__``: custom backref name on User model
 
-    Example:
+    Backref Configuration:
+        - ``None`` (default): Auto-generate as ``{tablename}s`` (e.g., "articles")
+        - Custom string: Use specified name (e.g., "my_posts")
+        - Empty string (``""``): Skip backref creation
+
+    Example (Basic):
+        >>> class Article(BasePermsModel, HasUserMixin):
+        ...     title: Mapped[str] = mapped_column(sa.String(200))
+        ...
+        >>> # Auto-generated backref: user.articles
+
+    Example (Custom names):
         >>> class Article(BasePermsModel, HasUserMixin):
         ...     __user_field_name__ = "author_id"
         ...     __user_relationship_name__ = "author"
-        ...     __user_id_nullable__ = False
+        ...     __user_backref_name__ = "written_articles"
         ...     title: Mapped[str] = mapped_column(sa.String(200))
         ...
         >>> article = Article(title="Test", author_id=current_user.id)
+        >>> user.written_articles  # Custom backref name
+
+    Example (No backref):
+        >>> class Note(BasePermsModel, HasUserMixin):
+        ...     __user_backref_name__ = ""  # No backref
+        ...     content: Mapped[str] = mapped_column(sa.Text)
     """
 
     __user_field_name__ = "user_id"
     __user_relationship_name__ = "user"
     __user_id_nullable__ = False
+    __user_backref_name__: str | None = None  # None means auto-generate
 
     def __init_subclass__(cls, **kwargs: Any):
         """Configure user field and relationship aliases on subclass creation."""
@@ -59,6 +78,21 @@ class HasUserMixin:
     @classmethod
     def _user_relationship_alias(cls) -> str:
         return str(getattr(cls, "__user_relationship_name__", "user"))
+
+    @classmethod
+    def _user_backref_name(cls) -> str | None:
+        """Get the backref name for the User relationship.
+
+        Returns:
+            Custom backref name if set, or auto-generated from tablename.
+            Returns None if backref should be skipped.
+        """
+        custom_name: str | None = getattr(cls, "__user_backref_name__", None)
+        if custom_name is not None:
+            return custom_name
+
+        # Auto-generate from tablename
+        return f"{cls.__tablename__}s"  # type: ignore
 
     @classmethod
     def _configure_user_aliases(cls) -> None:
@@ -103,19 +137,23 @@ class HasUserMixin:
     @declared_attr
     def user(cls) -> Mapped["User"]:
         """Relationship to User model."""
-        backref_name = f"{cls.__tablename__}s"  # type: ignore
-        # Add backref to User model, unless it already exists
+        backref_name = cls._user_backref_name()
+
+        # Add backref to User model, unless it already exists or is explicitly disabled
         from .user_models import User
 
-        if hasattr(User, backref_name) or backref_name in ("user_roles", "user_settings", "tokens"):
+        if backref_name and (hasattr(User, backref_name) or backref_name in ("user_roles", "user_settings", "tokens")):
             backref_arg = None
-        else:
+        elif backref_name:
             backref_arg = backref(
                 backref_name,
                 cascade="all, delete-orphan",
                 passive_deletes=True,
                 lazy="dynamic",
             )
+        else:
+            # backref_name is None, skip backref
+            backref_arg = None
 
         return relationship("User", lazy="joined", foreign_keys=[getattr(cls, "user_id")], backref=backref_arg)
 
