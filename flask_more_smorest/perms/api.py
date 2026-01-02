@@ -121,7 +121,10 @@ class Api(ApiOrig):
                 try:
                     # NOTE: we do not completely skip auth if DISABLE_AUTH=1, in case the endpoint relies on current_user
                     verify_jwt_in_request()
-                except (jwt_exceptions.JWTDecodeError, jwt_exceptions.NoAuthorizationError) as e:
+                except (
+                    jwt_exceptions.JWTDecodeError,
+                    jwt_exceptions.NoAuthorizationError,
+                ) as e:
                     if app.config.get("DISABLE_AUTH", False):
                         return
                     raise UnauthorizedError(f"Invalid token ({e})")

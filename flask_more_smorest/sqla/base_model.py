@@ -14,7 +14,14 @@ import sqlalchemy as sa
 from flask import request
 from marshmallow import fields, pre_load
 from marshmallow_sqlalchemy import ModelConverter, SQLAlchemyAutoSchema
-from sqlalchemy.orm import DeclarativeMeta, Mapped, MapperProperty, class_mapper, make_transient, mapped_column
+from sqlalchemy.orm import (
+    DeclarativeMeta,
+    Mapped,
+    MapperProperty,
+    class_mapper,
+    make_transient,
+    mapped_column,
+)
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.state import InstanceState
 
@@ -53,7 +60,7 @@ class BaseSchema(SQLAlchemyAutoSchema):
             The modified data dictionary with view_args injected
         """
 
-        if request and (args := getattr(request, "view_args")):
+        if request and (args := request.view_args):
             for view_arg, val in args.items():
                 if view_arg not in self.fields or self.fields[view_arg].dump_only or data.get(view_arg) is not None:
                     continue
@@ -124,7 +131,7 @@ class BaseModelMeta(DeclarativeMeta):
             },
         )
         # Cache it so it doesn't regenerate
-        setattr(cls, "Schema", schema_cls)
+        cls.Schema = schema_cls
 
         return schema_cls
 
@@ -192,7 +199,11 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         sort_order=-10,
     )
     created_at: Mapped[dt.datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, default=dt.datetime.now, server_default=sa.func.now(), sort_order=10
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=dt.datetime.now,
+        server_default=sa.func.now(),
+        sort_order=10,
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         sa.DateTime(timezone=True),
@@ -511,7 +522,7 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         db.session.expunge(self)
 
         make_transient(self)
-        setattr(self, "id", None)
+        self.id = None  # type: ignore[assignment]
 
         return self
 

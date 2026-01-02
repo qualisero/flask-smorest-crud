@@ -50,11 +50,9 @@ pytest-cov = "^6.1.1"
 pytest-mock = "^3.12.0"
 pytest-xdist = "^3.5.0"
 
-# Code Quality
-black = "^25.1.0"
-flake8 = "^7.0.0"
-flake8-pyproject = "^1.2.3"
-isort = "^5.13.2"
+# Code Quality (ruff replaces black, isort, and flake8)
+ruff = "^0.8.5"
+mypy = "^1.19.0"
 bandit = "^1.7.5"
 
 # Development Tools
@@ -65,7 +63,6 @@ tox = "^4.11.4"
 sphinx = "^7.2.6"
 sphinx-rtd-theme = "^2.0.0"
 myst-parser = "^2.0.0"
-mypy = "^1.19.0"
 sphinx-autodoc-typehints = "^2.0.0"
 
 [build-system]
@@ -107,50 +104,52 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
-[tool.black]
+# Ruff replaces black, isort, and flake8
+[tool.ruff]
 line-length = 120
-target-version = ['py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+target-version = "py311"
 
-[tool.isort]
-profile = "black"
-line_length = 120
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
+# Enable formatting (black replacement)
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
-[tool.flake8]
-max-line-length = 120
-select = ["C", "E", "F", "W", "B", "B950"]
-extend-ignore = ["E203", "E501", "E704", "W503"]
-per-file-ignores = [
-    "__init__.py:F401",
-    "tests/*:S101,S105,S106,S107",
+# Enable linting (flake8 + isort replacement)
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C",     # flake8-comprehensions
 ]
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    ".tox",
-    ".venv",
-    "*.egg-info",
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "C408",  # unnecessary dict() call (dict() is sometimes clearer)
+    "C901",  # function is too complex (some complexity is acceptable)
+    "N805",  # first argument of method should be named 'self' (cls is fine for classmethods/metaclasses)
+    "N806",  # variable in function should be lowercase (OK for dynamically created classes)
+    "N818",  # exception name should end with Error (ApiException is fine)
+    "B006",  # do not use mutable data structures for argument defaults (using list(CRUDMethod) is intentional)
+    "B904",  # within except clause, use raise ... from (not always needed)
+    "B017",  # pytest.raises(Exception) should be considered evil (OK in tests)
+    "UP038", # use X | Y in isinstance call instead of (X, Y) (tuple form is clearer)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Unused imports OK in __init__
+"tests/*" = ["S101", "S105", "S106", "S107"]  # Allow asserts, hardcoded passwords in tests
+
+# Configure import sorting (isort replacement)
+[tool.ruff.lint.isort]
+known-first-party = ["flask_more_smorest"]
+force-single-line = false
+split-on-trailing-comma = true
 
 [tool.mypy]
 python_version = "3.11"
@@ -177,13 +176,15 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Looser rules for tests: allow untyped defs by default and tolerate missing imports
+# Looser rules for tests: allow untyped defs and tolerate missing imports
 [[tool.mypy.overrides]]
-module = [
-    "tests.*",
-]
+module = "tests.*"
 ignore_missing_imports = true
 check_untyped_defs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+warn_return_any = false
+warn_unused_ignores = false
 
 [tool.bandit]
 exclude_dirs = ["tests"]
@@ -200,15 +201,10 @@ deps = pytest
 commands = pytest {posargs}
 
 [testenv:lint]
-deps = 
-    black
-    flake8
-    flake8-pyproject
-    isort
+deps = ruff
 commands = 
-    black --check flask_more_smorest tests
-    isort --check-only flask_more_smorest tests  
-    flake8 flask_more_smorest tests
+    ruff format --check flask_more_smorest tests
+    ruff check flask_more_smorest tests
 
 [testenv:mypy]
 deps = mypy

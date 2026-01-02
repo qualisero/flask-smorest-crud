@@ -5,7 +5,8 @@ using up-to-date features from flask-smorest, SQLAlchemy, and marshmallow_sqlalc
 """
 
 import uuid
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import pytest
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -235,9 +236,24 @@ class TestCRUDIntegration:
             with product_model.bypass_perms():
                 # Create multiple products
                 products_data = [
-                    {"name": "Product 1", "description": "First", "price": 10.00, "in_stock": True},
-                    {"name": "Product 2", "description": "Second", "price": 20.00, "in_stock": True},
-                    {"name": "Product 3", "description": "Third", "price": 30.00, "in_stock": False},
+                    {
+                        "name": "Product 1",
+                        "description": "First",
+                        "price": 10.00,
+                        "in_stock": True,
+                    },
+                    {
+                        "name": "Product 2",
+                        "description": "Second",
+                        "price": 20.00,
+                        "in_stock": True,
+                    },
+                    {
+                        "name": "Product 3",
+                        "description": "Third",
+                        "price": 30.00,
+                        "in_stock": False,
+                    },
                 ]
 
                 for product_dict in products_data:
@@ -259,9 +275,24 @@ class TestCRUDIntegration:
             with product_model.bypass_perms():
                 # Create products with different attributes
                 products_data = [
-                    {"name": "Product 1", "description": "In stock", "price": 10.00, "in_stock": True},
-                    {"name": "Product 2", "description": "In stock", "price": 20.00, "in_stock": True},
-                    {"name": "Product 3", "description": "Out of stock", "price": 30.00, "in_stock": False},
+                    {
+                        "name": "Product 1",
+                        "description": "In stock",
+                        "price": 10.00,
+                        "in_stock": True,
+                    },
+                    {
+                        "name": "Product 2",
+                        "description": "In stock",
+                        "price": 20.00,
+                        "in_stock": True,
+                    },
+                    {
+                        "name": "Product 3",
+                        "description": "Out of stock",
+                        "price": 30.00,
+                        "in_stock": False,
+                    },
                 ]
 
                 for product_dict in products_data:

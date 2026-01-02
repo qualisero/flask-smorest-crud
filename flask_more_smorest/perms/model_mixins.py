@@ -117,7 +117,7 @@ class HasUserMixin:
             else:
                 source_type = Mapped["User"]
         annotations[target] = source_type
-        setattr(cls, "__annotations__", annotations)
+        cls.__annotations__ = annotations
 
     @declared_attr
     def user_id(cls) -> Mapped[uuid.UUID | None]:
@@ -155,7 +155,7 @@ class HasUserMixin:
             # backref_name is None, skip backref
             backref_arg = None
 
-        return relationship("User", lazy="joined", foreign_keys=[getattr(cls, "user_id")], backref=backref_arg)
+        return relationship("User", lazy="joined", foreign_keys=[cls.user_id], backref=backref_arg)  # type: ignore[list-item]
 
 
 class UserOwnershipMixin(HasUserMixin):
@@ -326,7 +326,7 @@ class SoftDeleteMixin:
         Sets deleted_at to current time and optionally disables
         the record if is_enabled field exists.
         """
-        self.deleted_at = dt.datetime.now(dt.timezone.utc)
+        self.deleted_at = dt.datetime.now(dt.UTC)
         # Only set is_enabled if it exists
         if hasattr(self, "is_enabled"):
             self.is_enabled = False

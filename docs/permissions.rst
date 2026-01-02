@@ -25,12 +25,12 @@ BasePermsModel
    from flask_more_smorest.sqla import db
    from sqlalchemy.orm import Mapped, mapped_column
 
-   class Article(BasePermsModel):
-       # Table name automatically set to "article"
+   class Critter(BasePermsModel):
+       # Table name automatically set to "critter"
        
-       title: Mapped[str] = mapped_column(db.String(200), nullable=False)
-       body: Mapped[str] = mapped_column(db.Text, nullable=False)
-       published: Mapped[bool] = mapped_column(db.Boolean, default=False)
+       name: Mapped[str] = mapped_column(db.String(100), nullable=False)
+       species: Mapped[str] = mapped_column(db.String(50), nullable=False)
+       is_adoptable: Mapped[bool] = mapped_column(db.Boolean, default=True)
 
        def _can_write(self) -> bool:
            """Custom write permission logic"""
@@ -38,10 +38,10 @@ BasePermsModel
 
        def _can_read(self) -> bool:
            """Custom read permission logic"""
-           # Anyone can read published articles
-           if self.published:
+           # Anyone can read adoptable critters
+           if self.is_adoptable:
                return True
-           # Only admin can read unpublished
+           # Only admin can see non-adoptable ones
            return self.is_current_user_admin()
 
 Permission Hooks
@@ -100,10 +100,11 @@ Adds a ``user_id`` foreign key and ``user`` relationship:
 
    from flask_more_smorest.perms import BasePermsModel, HasUserMixin
 
-   class Article(HasUserMixin, BasePermsModel):
-       # Table name automatically set to "article"
+   class Critter(HasUserMixin, BasePermsModel):
+       # Table name automatically set to "critter"
        
-       title: Mapped[str] = mapped_column(db.String(200))
+       name: Mapped[str] = mapped_column(db.String(100))
+       species: Mapped[str] = mapped_column(db.String(50))
        # user_id and user relationship automatically added
 
 UserOwnershipMixin
@@ -117,16 +118,17 @@ Unified mixin for user-owned resources with two configurable modes:
 
    from flask_more_smorest.perms import BasePermsModel, UserOwnershipMixin
 
-   class Comment(UserOwnershipMixin, BasePermsModel):
+   class Toy(UserOwnershipMixin, BasePermsModel):
        # Uses default: __delegate_to_user__ = False
        
-       text: Mapped[str] = mapped_column(db.Text)
-       # Users can read/write only their own comments (simple user_id check)
-       # Admins can access all comments (admin bypass in BasePermsModel)
+       name: Mapped[str] = mapped_column(db.String(100))
+       color: Mapped[str] = mapped_column(db.String(50))
+       # Users can read/write only their own toys (simple user_id check)
+       # Admins can access all toys (admin bypass in BasePermsModel)
 
 **Implementation**: Checks if ``user_id == current_user_id``
 
-**Use for**: Simple user-owned resources (notes, posts, comments, documents)
+**Use for**: Simple user-owned resources (toys, notes, posts, comments)
 
 **Delegated Permissions Mode** (``__delegate_to_user__ = True``):
 
@@ -233,18 +235,21 @@ Permission Models provide several helper methods:
 
 .. code-block:: python
 
+   from flask_more_smorest.perms.user_models import get_current_user_id
+
    # Check if current user is admin
-   if article.is_current_user_admin():
+   if critter.is_current_user_admin():
        # Do admin stuff
        pass
 
-   # Check if current user is the owner
-   if article.is_current_user_owner():
+   # Check if current user is the owner (for HasUserMixin models)
+   if critter.user_id == get_current_user_id():
        # User owns this resource
        pass
 
-   # Get current user from JWT
-   current_user = article.get_current_user()
+   # Get current user from JWT (Flask-JWT-Extended proxy)
+   from flask_more_smorest.perms import current_user
+   user = current_user  # already loaded by JWT
 
 Integration with CRUD Blueprints
 ---------------------------------
@@ -256,10 +261,10 @@ CRUD Blueprints automatically enforce permissions:
    from flask_more_smorest.perms import CRUDBlueprint
 
    # All operations will enforce permissions
-   articles = CRUDBlueprint(
-       "articles",
+   critters = CRUDBlueprint(
+       "critters",
        __name__,
-       model="Article",  # Must be a BasePermsModel subclass
+       model="Critter",  # Must be a BasePermsModel subclass
        schema="ArticleSchema",
    )
 
@@ -289,23 +294,27 @@ Here's a complete example of a blog with permission controls:
    from flask_more_smorest.sqla import db
    from sqlalchemy.orm import Mapped, mapped_column
 
-   class Article(HasUserMixin, BasePermsModel):
-       # Table name automatically set to "article"
+   class Critter(HasUserMixin, BasePermsModel):
+       # Table name automatically set to "critter"
 
-       title: Mapped[str] = mapped_column(db.String(200), nullable=False)
-       body: Mapped[str] = mapped_column(db.Text, nullable=False)
-       published: Mapped[bool] = mapped_column(db.Boolean, default=False)
+       name: Mapped[str] = mapped_column(db.String(100), nullable=False)
+       species: Mapped[str] = mapped_column(db.String(50), nullable=False)
+       is_adoptable: Mapped[bool] = mapped_column(db.Boolean, default=True)
 
        def _can_read(self) -> bool:
-           # Anyone can read published articles
-           if self.published:
+           from flask_more_smorest.perms.user_models import get_current_user_id
+           
+           # Anyone can read adoptable critters
+           if self.is_adoptable:
                return True
-           # Authors and admins can read drafts
-           return self.is_current_user_owner() or self.is_current_user_admin()
+           # Owners and admins can see non-adoptable ones
+           return self.user_id == get_current_user_id() or self.is_current_user_admin()
 
        def _can_write(self) -> bool:
-           # Only author or admin can edit
-           return self.is_current_user_owner() or self.is_current_user_admin()
+           from flask_more_smorest.perms.user_models import get_current_user_id
+           
+           # Only owner or admin can edit
+           return self.user_id == get_current_user_id() or self.is_current_user_admin()
 
        def _can_delete(self) -> bool:
            # Only admin can delete
@@ -313,22 +322,24 @@ Here's a complete example of a blog with permission controls:
 
        @classmethod
        def _can_create(cls) -> bool:
-           # Any authenticated user can create articles
-           return cls.get_current_user() is not None
+           # Any authenticated user can create critters
+           from flask_more_smorest.perms import current_user
+           return current_user is not None
 
 
-   class Comment(HasUserMixin, UserOwnershipMixin, BasePermsModel):
-       # Table name automatically set to "comment"
+   class Toy(HasUserMixin, UserOwnershipMixin, BasePermsModel):
+       # Table name automatically set to "toy"
        # Uses default: __delegate_to_user__ = False (simple ownership)
 
-       article_id: Mapped[uuid.UUID] = mapped_column(
-           db.ForeignKey("article.id"), nullable=False
+       critter_id: Mapped[uuid.UUID] = mapped_column(
+           db.ForeignKey("critter.id"), nullable=False
        )
-       text: Mapped[str] = mapped_column(db.Text, nullable=False)
+       name: Mapped[str] = mapped_column(db.String(100), nullable=False)
+       color: Mapped[str] = mapped_column(db.String(50))
 
        # UserOwnershipMixin provides:
-       # - Users can only read/write their own comments
-       # - Admins can access all comments
+       # - Users can only read/write their own toys
+       # - Admins can access all toys
 
 Next Steps
 ----------

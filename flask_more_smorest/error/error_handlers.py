@@ -40,7 +40,10 @@ def server_error_handler(e: Exception) -> "Response":
 
 
 def unauthorized_handler(
-    e: Exception, errors: dict[str, str] | None = None, level: str = "info", warnings: list[str] | None = None
+    e: Exception,
+    errors: dict[str, str] | None = None,
+    level: str = "info",
+    warnings: list[str] | None = None,
 ) -> "Response":
     """Handle unauthorized access errors.
 

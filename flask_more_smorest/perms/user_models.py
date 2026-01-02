@@ -442,7 +442,10 @@ class UserRole(BasePermsModel):
         """Permission check for modifying roles."""
         try:
             # Check against default admin roles
-            admin_roles = {DefaultUserRole.SUPERADMIN.value, DefaultUserRole.ADMIN.value}
+            admin_roles = {
+                DefaultUserRole.SUPERADMIN.value,
+                DefaultUserRole.ADMIN.value,
+            }
 
             if self._role in admin_roles:
                 return current_user.has_role(DefaultUserRole.SUPERADMIN)

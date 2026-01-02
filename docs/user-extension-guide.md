@@ -185,6 +185,8 @@ class FullUser(User, ProfileMixin, TimestampMixin, SoftDeleteMixin):
 ### Multi-Tenant SaaS Application
 
 ```python
+from flask_more_smorest.perms import current_user
+
 class TenantUser(User, ProfileMixin):
     """User in a multi-tenant SaaS application."""
     
@@ -203,7 +205,7 @@ class TenantUser(User, ProfileMixin):
     def _can_read(self) -> bool:
         """Users can only read within their tenant."""
         try:
-            current = get_current_user()
+            current = current_user
             return current.tenant_id == self.tenant_id or current.is_admin
         except:
             return False
@@ -254,6 +256,8 @@ class CustomerUser(User, ProfileMixin, TimestampMixin):
 ### Enterprise Application
 
 ```python
+from flask_more_smorest.perms import current_user
+
 class EmployeeUser(User, ProfileMixin, TimestampMixin):
     """Employee user for enterprise application."""
     
@@ -284,7 +288,7 @@ class EmployeeUser(User, ProfileMixin, TimestampMixin):
     def _can_read(self) -> bool:
         """Employees can read their own data and their direct reports'."""
         try:
-            current = get_current_user()
+            current = current_user
             if current.id == self.id:
                 return True
             if current.is_admin:
@@ -301,6 +305,10 @@ class EmployeeUser(User, ProfileMixin, TimestampMixin):
         
         # Could trigger notifications, workflow, etc.
         self._notify_transfer(old_manager, new_manager)
+
+    def _notify_transfer(self, old_manager: "EmployeeUser | None", new_manager: "EmployeeUser") -> None:
+        """Hook for sending notifications or audit events."""
+        pass
 ```
 
 ## Important Notes

@@ -2,7 +2,10 @@
 
 from flask.views import MethodView
 
-from flask_more_smorest.blueprint_operationid import HTTP_METHOD_OPERATION_MAP, BlueprintOperationIdMixin
+from flask_more_smorest.blueprint_operationid import (
+    HTTP_METHOD_OPERATION_MAP,
+    BlueprintOperationIdMixin,
+)
 
 
 class TestBlueprintOperationIdMixin:
@@ -50,7 +53,7 @@ class TestBlueprintOperationIdMixin:
                     return {"users": []}
 
             # Check that operationId was set
-            get_method = getattr(Users, "get")
+            get_method = Users.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -72,7 +75,7 @@ class TestBlueprintOperationIdMixin:
                 def get(self) -> dict:
                     return {"companies": []}
 
-            get_method = getattr(Companies, "get")
+            get_method = Companies.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert apidoc["manual_doc"]["operationId"] == "listCompanies"
@@ -93,7 +96,7 @@ class TestBlueprintOperationIdMixin:
                 def get(self, user_id: str) -> dict:
                     return {"user": {}}
 
-            get_method = getattr(User, "get")
+            get_method = User.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -115,7 +118,7 @@ class TestBlueprintOperationIdMixin:
                 def post(self) -> dict:
                     return {"user": {}}
 
-            post_method = getattr(Users, "post")
+            post_method = Users.post
             apidoc = getattr(post_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -137,7 +140,7 @@ class TestBlueprintOperationIdMixin:
                 def patch(self, user_id: str) -> dict:
                     return {"user": {}}
 
-            patch_method = getattr(User, "patch")
+            patch_method = User.patch
             apidoc = getattr(patch_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -159,7 +162,7 @@ class TestBlueprintOperationIdMixin:
                 def delete(self, user_id: str) -> tuple[str, int]:
                     return "", 204
 
-            delete_method = getattr(User, "delete")
+            delete_method = User.delete
             apidoc = getattr(delete_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -181,7 +184,7 @@ class TestBlueprintOperationIdMixin:
                 def get(self, user_profile_id: str) -> dict:
                     return {"profile": {}}
 
-            get_method = getattr(UserProfile, "get")
+            get_method = UserProfile.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
@@ -204,7 +207,7 @@ class TestBlueprintOperationIdMixin:
                 def get(self, user_id: str) -> dict:
                     return {"user": {}}
 
-            get_method = getattr(User, "get")
+            get_method = User.get
             apidoc = getattr(get_method, "_apidoc", {})
             # Manual operationId should be preserved
             assert apidoc["manual_doc"]["operationId"] == "customGetUser"

@@ -51,17 +51,37 @@ from .perms import Api, BasePermsModel, CRUDBlueprint
 from .perms.jwt import init_jwt
 
 # Import user model mixins
-from .perms.model_mixins import ProfileMixin, SoftDeleteMixin, TimestampMixin, UserOwnershipMixin
+from .perms.model_mixins import (
+    ProfileMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UserOwnershipMixin,
+)
 from .perms.perms_blueprint import PermsBlueprintMixin as BlueprintAccessMixin
 
 # Import user models and authentication
-from .perms.user_models import DefaultUserRole, Domain, Token, User, UserRole, UserSetting
+from .perms.user_models import (
+    DefaultUserRole,
+    Domain,
+    Token,
+    User,
+    UserRole,
+    UserSetting,
+    get_current_user_id,
+)
 from .perms.user_models import current_user as get_current_user
-from .perms.user_models import get_current_user_id
 
 # Import migration system
 # Import database and models
-from .sqla import BaseModel, create_migration, db, downgrade_database, init_db, init_migrations, upgrade_database
+from .sqla import (
+    BaseModel,
+    create_migration,
+    db,
+    downgrade_database,
+    init_db,
+    init_migrations,
+    upgrade_database,
+)
 from .sqla.base_model import BaseSchema
 from .utils import convert_snake_to_camel
 

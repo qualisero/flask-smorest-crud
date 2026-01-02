@@ -8,7 +8,7 @@ filter parameters into SQLAlchemy query statements. It supports:
 """
 
 import copy
-from typing import Mapping
+from collections.abc import Mapping
 
 import marshmallow as ma
 from marshmallow import validate

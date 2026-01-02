@@ -85,9 +85,8 @@ jobs:
     
     - name: Run linting
       run: |
-        poetry run black --check flask_more_smorest tests
-        poetry run isort --check-only flask_more_smorest tests
-        poetry run flake8 flask_more_smorest tests
+        poetry run ruff format --check flask_more_smorest tests
+        poetry run ruff check flask_more_smorest tests
         poetry run mypy flask_more_smorest
         poetry run bandit -r flask_more_smorest
 

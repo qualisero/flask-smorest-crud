@@ -1,21 +1,15 @@
 repos:
   - repo: local
     hooks:
-      - id: black
-        name: black (poetry, autofix)
-        entry: poetry run black flask_more_smorest tests
+      - id: ruff-format
+        name: ruff format (poetry, autofix)
+        entry: poetry run ruff format flask_more_smorest tests
         language: system
         types: [python]
 
-      - id: isort
-        name: isort (poetry, autofix)
-        entry: poetry run isort flask_more_smorest tests
-        language: system
-        types: [python]
-
-      - id: flake8
-        name: flake8 (poetry)
-        entry: poetry run flake8 flask_more_smorest tests
+      - id: ruff-lint
+        name: ruff lint (poetry, autofix)
+        entry: poetry run ruff check --fix flask_more_smorest tests
         language: system
         types: [python]
 

@@ -7,7 +7,10 @@ import pytest
 from marshmallow import Schema, fields
 from sqlalchemy import Boolean, Column, Date, Integer, String
 
-from flask_more_smorest.crud.query_filtering import generate_filter_schema, get_statements_from_filters
+from flask_more_smorest.crud.query_filtering import (
+    generate_filter_schema,
+    get_statements_from_filters,
+)
 from flask_more_smorest.sqla.base_model import BaseModel
 
 
