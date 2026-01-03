@@ -149,13 +149,13 @@ def blueprints() -> Iterator[dict[str, CRUDBlueprint]]:
 
     # Create mock modules for blueprint imports
     articles_module = types.ModuleType("mock_articles")
-    articles_module.Article = Article
-    articles_module.ArticleSchema = Article.Schema
+    articles_module.Article = Article  # type: ignore[attr-defined]
+    articles_module.ArticleSchema = Article.Schema  # type: ignore[attr-defined]
     sys.modules["mock_articles"] = articles_module
 
     comments_module = types.ModuleType("mock_comments")
-    comments_module.Comment = Comment
-    comments_module.CommentSchema = Comment.Schema
+    comments_module.Comment = Comment  # type: ignore[attr-defined]
+    comments_module.CommentSchema = Comment.Schema  # type: ignore[attr-defined]
     sys.modules["mock_comments"] = comments_module
 
     # Create blueprints - use defaults where possible
