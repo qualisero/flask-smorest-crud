@@ -20,8 +20,10 @@ Quick Example
 .. code-block:: python
 
    from flask import Flask
-   from flask_more_smorest import init_db
-   from flask_more_smorest.perms import Api, CRUDBlueprint
+   from flask_more_smorest import BaseModel, CRUDBlueprint, init_db
+   from flask_more_smorest.perms import Api
+   from flask_more_smorest.sqla import db
+   from sqlalchemy.orm import Mapped, mapped_column
 
    app = Flask(__name__)
    app.config.update(
@@ -30,33 +32,41 @@ Quick Example
        JWT_SECRET_KEY="jwt-secret",
    )
 
+   # Define your model
+   class Product(BaseModel):
+       name: Mapped[str] = mapped_column(db.String(100))
+       price: Mapped[float] = mapped_column(db.Float)
+
    init_db(app)
    api = Api(app)
 
-   # Automatic CRUD endpoints
-   users = CRUDBlueprint(
-       "users",
+   # Automatic CRUD endpoints using model class
+   products = CRUDBlueprint(
+       "products",
        __name__,
-       model="User",
-       schema="UserSchema",
-       url_prefix="/api/users/",
+       model=Product,           # Use class (preferred)
+       schema=Product.Schema,   # Auto-generated schema
+       url_prefix="/api/products/",
    )
 
-   api.register_blueprint(users)
+   api.register_blueprint(products)
 
 This automatically creates RESTful endpoints with filtering, pagination, and permission checks.
 
-.. note::
+User Authentication
+-------------------
 
-   **Automatic Table Naming**: When using ``BaseModel`` or its subclasses 
-   (like ``BasePermsModel``, ``User``), you don't need to specify ``__tablename__``. 
-   SQLAlchemy automatically generates table names by converting your class name to snake_case:
-   
-   - ``User`` → ``user``
-   - ``UserProfile`` → ``user_profile``
-   - ``ArticleComment`` → ``article_comment``
-   
-   Only specify ``__tablename__`` if you need a custom table name.
+Get instant authentication with ``UserBlueprint``:
+
+.. code-block:: python
+
+   from flask_more_smorest import UserBlueprint
+
+   # Instant login and profile endpoints
+   user_bp = UserBlueprint()
+   api.register_blueprint(user_bp)
+
+This provides ``POST /api/users/login/``, ``GET /api/users/me/``, and full CRUD for user management.
 
 Documentation Contents
 ----------------------

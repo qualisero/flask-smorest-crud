@@ -171,7 +171,7 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
     This base class provides:
     - Automatic UUID primary key generation
     - Automatic created_at and updated_at timestamps
-    - Automatic Marshmallow schema generation
+    - Automatic Marshmallow schema generation via Model.Schema
     - Common CRUD operations (get, save, update, delete)
     - Lifecycle hooks (on_before_create, on_after_create, etc.)
 
@@ -181,12 +181,19 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
         id: UUID primary key (automatically generated)
         created_at: Timestamp of creation
         updated_at: Timestamp of last update
+        Schema: Auto-generated Marshmallow schema class
 
     Example:
         >>> class Article(BaseModel):
-        ...     # __tablename__ auto-generated as "article"
         ...     title: Mapped[str] = mapped_column(sa.String(200))
         ...     content: Mapped[str] = mapped_column(sa.Text)
+        ...
+        >>> # Use auto-generated schema
+        >>> article_bp = CRUDBlueprint(
+        ...     'articles', __name__,
+        ...     model=Article,
+        ...     schema=Article.Schema  # No need to define custom schema
+        ... )
     """
 
     __abstract__ = True

@@ -18,8 +18,10 @@ Here's a minimal example to get you started:
 .. code-block:: python
 
    from flask import Flask
-   from flask_more_smorest import init_db
-   from flask_more_smorest.perms import Api, CRUDBlueprint
+   from flask_more_smorest import BaseModel, CRUDBlueprint, init_db
+   from flask_more_smorest.perms import Api
+   from flask_more_smorest.sqla import db
+   from sqlalchemy.orm import Mapped, mapped_column
 
    # Create Flask app
    app = Flask(__name__)
@@ -32,18 +34,24 @@ Here's a minimal example to get you started:
        JWT_SECRET_KEY="change-me-too",
    )
 
+   # Define your model
+   class Critter(BaseModel):
+       name: Mapped[str] = mapped_column(db.String(100))
+       species: Mapped[str] = mapped_column(db.String(50))
+       cuteness_level: Mapped[int] = mapped_column(db.Integer, default=10)
+
    # Initialize database
    init_db(app)
 
    # Create API instance with JWT and permission hooks
    api = Api(app)
 
-   # Create a CRUD blueprint
+   # Create a CRUD blueprint using model class
    critters = CRUDBlueprint(
        "critters",
        __name__,
-       model="Critter",        # resolved from your models module
-       schema="CritterSchema",  # resolved from your schemas module
+       model=Critter,           # Use class (preferred over string)
+       schema=Critter.Schema,   # Auto-generated schema
        url_prefix="/api/critters/",
    )
 
@@ -73,9 +81,6 @@ Use ``BaseModel`` to create models with automatic features:
    from sqlalchemy.orm import Mapped, mapped_column
 
    class Critter(BaseModel):
-       # __tablename__ is automatically set to "critter" (snake_case of class name)
-       # You can override it if needed: __tablename__ = "custom_critters"
-
        name: Mapped[str] = mapped_column(db.String(100), nullable=False)
        species: Mapped[str] = mapped_column(db.String(50), nullable=False)
        cuteness_level: Mapped[int] = mapped_column(db.Integer, default=10)
@@ -85,52 +90,67 @@ Use ``BaseModel`` to create models with automatic features:
 - UUID primary key (``id``)
 - Timestamps (``created_at``, ``updated_at``)
 - CRUD helper methods (``save()``, ``update()``, ``delete()``, ``get_by()``, ``get_by_or_404()``)
-- Automatic Marshmallow schema generation (``Critter.Schema``)
-- **Automatic table naming** (class name converted to snake_case)
-
-.. note::
-   
-   The ``__tablename__`` attribute is **optional**. SQLAlchemy automatically generates 
-   table names by converting your class name to snake_case. For example:
-   
-   - ``Critter`` → ``critter``
-   - ``UserProfile`` → ``user_profile``
-   - ``ArticleComment`` → ``article_comment``
-   
-   Only specify ``__tablename__`` if you need a custom table name.
+- **Auto-generated Marshmallow schema** (``Critter.Schema``) - no need to define custom schemas
 
 Controlling CRUD Endpoints
 ---------------------------
 
-You can customize which endpoints are created:
+By default, all CRUD methods are enabled. Customize which endpoints are created:
 
 .. code-block:: python
 
    from flask_more_smorest.crud.crud_blueprint import CRUDMethod
 
-   # Enable only specific methods
-   critters = CRUDBlueprint(
+   # Read-only endpoints
+   read_only = CRUDBlueprint(
        "critters",
        __name__,
-       model="Critter",
-       schema="CritterSchema",
+       model=Critter,
+       schema=Critter.Schema,
        methods=[CRUDMethod.INDEX, CRUDMethod.GET],  # Only list and get
    )
 
-   # Or customize specific methods
-   critters = CRUDBlueprint(
+   # Disable specific methods
+   no_delete = CRUDBlueprint(
        "critters",
        __name__,
-       model="Critter",
-       schema="CritterSchema",
-       methods={
-           CRUDMethod.POST: {"schema": "CritterWriteSchema"},  # Custom schema for POST
-           CRUDMethod.DELETE: {"admin_only": True},            # Admin-only endpoint
-           CRUDMethod.PATCH: False,                            # Disable PATCH
-       },
+       model=Critter,
+       schema=Critter.Schema,
+       skip_methods=[CRUDMethod.DELETE],  # All except delete
    )
 
-When using a dict for ``methods``, all methods are enabled by default unless explicitly disabled with ``False``.
+For advanced configuration (custom schemas per method, admin-only endpoints, etc.), see :doc:`crud`.
+
+User Authentication
+-------------------
+
+Get instant authentication with ``UserBlueprint``:
+
+.. code-block:: python
+
+   from flask_more_smorest import UserBlueprint
+
+   # Instant login and profile endpoints
+   user_bp = UserBlueprint()
+   api.register_blueprint(user_bp)
+
+This automatically provides:
+
+- ``POST /api/users/login/`` - JWT authentication endpoint
+- ``GET /api/users/me/`` - Current user profile endpoint
+- Full CRUD for user management with role-based permissions
+
+Enable public registration:
+
+.. code-block:: python
+
+   from flask_more_smorest import User, UserBlueprint
+
+   class PublicUser(User):
+       PUBLIC_REGISTRATION = True  # Allow unauthenticated user creation
+
+   public_bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+   api.register_blueprint(public_bp)
 
 Filtering and Pagination
 -------------------------

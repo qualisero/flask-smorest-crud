@@ -10,23 +10,29 @@ Create a CRUD blueprint by specifying a model and schema:
 
 .. code-block:: python
 
-   from flask_more_smorest.crud.crud_blueprint import CRUDBlueprint
+   from flask_more_smorest import BaseModel, CRUDBlueprint
+   from flask_more_smorest.sqla import db
+   from sqlalchemy.orm import Mapped, mapped_column
 
-   users = CRUDBlueprint(
-       "critters",                    # Blueprint name
+   class Product(BaseModel):
+       name: Mapped[str] = mapped_column(db.String(100))
+       price: Mapped[float] = mapped_column(db.Float)
+
+   products = CRUDBlueprint(
+       "products",                 # Blueprint name
        __name__,                   # Import name
-       model="Critter",               # Model class or string
-       schema="CritterSchema",        # Schema class or string
-       url_prefix="/api/users/",   # URL prefix
+       model=Product,              # Use class (preferred)
+       schema=Product.Schema,      # Auto-generated schema
+       url_prefix="/api/products/",
    )
 
 This creates five endpoints:
 
-- ``GET /api/users/`` - List all users (INDEX)
-- ``POST /api/users/`` - Create a new user (POST)
-- ``GET /api/users/<id>`` - Get a specific user (GET)
-- ``PATCH /api/users/<id>`` - Update a user (PATCH)
-- ``DELETE /api/users/<id>`` - Delete a user (DELETE)
+- ``GET /api/products/`` - List all products (INDEX)
+- ``POST /api/products/`` - Create a new product (POST)
+- ``GET /api/products/<id>`` - Get a specific product (GET)
+- ``PATCH /api/products/<id>`` - Update a product (PATCH)
+- ``DELETE /api/products/<id>`` - Delete a product (DELETE)
 
 Configuration Options
 ---------------------
@@ -34,70 +40,83 @@ Configuration Options
 Model and Schema Resolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Models and schemas can be specified as:
+**Preferred: Use model classes directly**
 
-1. **Strings** (resolved from default import paths):
+.. code-block:: python
 
-   .. code-block:: python
+   from myapp.models import Product
 
-      CRUDBlueprint(
-          "critters",
-          __name__,
-          model="Critter",        # Resolves to models.Critter
-          schema="CritterSchema", # Resolves to schemas.CritterSchema
-      )
+   products = CRUDBlueprint(
+       "products",
+       __name__,
+       model=Product,           # Use class (preferred)
+       schema=Product.Schema,   # Auto-generated schema
+   )
 
-2. **Classes** (direct reference):
+**Alternative: String references**
 
-   .. code-block:: python
+Models and schemas can also be specified as strings (resolved from default import paths):
 
-      from myapp.models import Critter
-      from myapp.schemas import CritterSchema
+.. code-block:: python
 
-      CRUDBlueprint(
-          "critters",
-          __name__,
-          model=Critter,
-          schema=CritterSchema,
-      )
+   CRUDBlueprint(
+       "products",
+       __name__,
+       model="Product",        # Resolves to models.Product
+       schema="ProductSchema", # Resolves to schemas.ProductSchema
+   )
 
-3. **Custom import paths**:
-
-   .. code-block:: python
-
-      CRUDBlueprint(
-          "critters",
-          __name__,
-          model="Critter",
-          schema="CritterSchema",
-          model_import_name="myapp.resources.models",
-          schema_import_name="myapp.resources.schemas",
-      )
+   # With custom import paths:
+   CRUDBlueprint(
+       "products",
+       __name__,
+       model="Product",
+       schema="ProductSchema",
+       model_import_name="myapp.resources.models",
+       schema_import_name="myapp.resources.schemas",
+   )
 
 Controlling Methods
 ^^^^^^^^^^^^^^^^^^^
 
-Enable only specific methods using a list:
+By default, all CRUD methods are enabled. Control which endpoints are created:
+
+**Enable only specific methods:**
 
 .. code-block:: python
 
    from flask_more_smorest.crud.crud_blueprint import CRUDMethod
 
-   # Only create list and get endpoints
-   users = CRUDBlueprint(
-       "critters",
+   # Read-only endpoints
+   read_only = CRUDBlueprint(
+       "products",
        __name__,
-       model="Critter",
-       schema="CritterSchema",
+       model=Product,
+       schema=Product.Schema,
        methods=[CRUDMethod.INDEX, CRUDMethod.GET],
    )
 
-Configure methods using a dict (all methods enabled by default):
+**Disable specific methods:**
 
 .. code-block:: python
 
-   users = CRUDBlueprint(
-       "critters",
+   # All except delete
+   no_delete = CRUDBlueprint(
+       "products",
+       __name__,
+       model=Product,
+       schema=Product.Schema,
+       skip_methods=[CRUDMethod.DELETE],
+   )
+
+**Advanced: Configure methods individually:**
+
+.. code-block:: python
+
+   from myapp.schemas import ProductCreateSchema
+
+   advanced = CRUDBlueprint(
+       "products",
        __name__,
        model="Critter",
        schema="CritterSchema",

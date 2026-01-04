@@ -99,38 +99,39 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
 
     Examples:
         Basic usage (all methods enabled):
+        >>> from myapp.models import Product
         >>> blueprint = CRUDBlueprint(
-        ...     'users', __name__,
-        ...     model='User',
-        ...     schema='UserSchema'
+        ...     'products', __name__,
+        ...     model=Product,           # Use class (preferred)
+        ...     schema=Product.Schema    # Auto-generated schema
         ... )
 
         Enable only specific methods:
         >>> blueprint = CRUDBlueprint(
-        ...     'users', __name__,
-        ...     model='User',
-        ...     schema='UserSchema',
-        ...     methods=[CRUDMethod.INDEX, CRUDMethod.GET]
+        ...     'products', __name__,
+        ...     model=Product,
+        ...     schema=Product.Schema,
+        ...     methods=[CRUDMethod.INDEX, CRUDMethod.GET]  # Read-only
         ... )
 
-        Configure specific methods (all enabled by default when using dict):
+        Disable specific methods:
         >>> blueprint = CRUDBlueprint(
-        ...     'users', __name__,
-        ...     model='User',
-        ...     schema='UserSchema',
+        ...     'products', __name__,
+        ...     model=Product,
+        ...     schema=Product.Schema,
+        ...     skip_methods=[CRUDMethod.DELETE]  # All except delete
+        ... )
+
+        Advanced configuration (custom schemas, admin-only):
+        >>> blueprint = CRUDBlueprint(
+        ...     'products', __name__,
+        ...     model=Product,
+        ...     schema=Product.Schema,
         ...     methods={
-        ...         CRUDMethod.POST: {"schema": "UserWriteSchema"},
+        ...         CRUDMethod.POST: {"schema": ProductCreateSchema},
         ...         CRUDMethod.DELETE: {"admin_only": True},
         ...         CRUDMethod.PATCH: False,  # Explicitly disable
         ...     }
-        ... )
-
-        All methods except some (using skip_methods):
-        >>> blueprint = CRUDBlueprint(
-        ...     'users', __name__,
-        ...     model='User',
-        ...     schema='UserSchema',
-        ...     skip_methods=[CRUDMethod.DELETE, CRUDMethod.PATCH]
         ... )
     """
 

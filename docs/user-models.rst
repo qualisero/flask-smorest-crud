@@ -131,10 +131,54 @@ Removing Roles:
    if role:
        role.delete()
 
-JWT Authentication
-------------------
+User Authentication Blueprints
+------------------------------
 
-The user system integrates with Flask-JWT-Extended:
+The easiest way to add authentication is with ``UserBlueprint``:
+
+.. code-block:: python
+
+   from flask_more_smorest import UserBlueprint
+
+   # Instant authentication endpoints
+   user_bp = UserBlueprint()
+   api.register_blueprint(user_bp)
+
+This automatically provides:
+
+- ``POST /api/users/login/`` - JWT authentication
+- ``GET /api/users/me/`` - Current user profile
+- Full CRUD endpoints for user management
+
+Enable Public Registration:
+
+.. code-block:: python
+
+   from flask_more_smorest import User, UserBlueprint
+
+   class PublicUser(User):
+       PUBLIC_REGISTRATION = True  # Allow unauthenticated user creation
+
+   public_bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+   api.register_blueprint(public_bp)
+
+Customize UserBlueprint:
+
+.. code-block:: python
+
+   from flask_more_smorest.crud.crud_blueprint import CRUDMethod
+
+   # Custom configuration
+   custom_bp = UserBlueprint(
+       name="auth",
+       url_prefix="/api/auth/",
+       skip_methods=[CRUDMethod.DELETE],  # Disable user deletion
+   )
+
+JWT Authentication (Manual Implementation)
+------------------------------------------
+
+For custom authentication flows, you can manually implement JWT authentication.
 
 Configuration:
 
@@ -153,7 +197,7 @@ Configuration:
 
    api = Api(app)  # Automatically initializes JWT
 
-Login Endpoint:
+Manual Login Endpoint:
 
 .. code-block:: python
 
@@ -236,9 +280,6 @@ Basic Extension:
    from sqlalchemy.orm import Mapped, mapped_column
 
    class Employee(User):
-       # Table name automatically set to "employee"
-       # Override if needed: __tablename__ = "employees"
-       
        employee_id: Mapped[str] = mapped_column(
            db.String(32), unique=True, nullable=False
        )
@@ -252,8 +293,6 @@ With Profile Mixin:
    from flask_more_smorest.perms import User, ProfileMixin
 
    class Customer(ProfileMixin, User):
-       # Table name automatically set to "customer"
-       
        loyalty_points: Mapped[int] = mapped_column(db.Integer, default=0)
        # ProfileMixin adds: first_name, last_name, phone, address, etc.
 

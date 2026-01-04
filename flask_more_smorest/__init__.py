@@ -4,40 +4,53 @@ A powerful extension library for Flask-Smorest that provides automatic CRUD oper
 enhanced blueprints with annotations, advanced query filtering capabilities, and
 extensible user management with custom model support.
 
-Example:
+Quick Start Example:
     >>> from flask import Flask
-    >>> from flask_more_smorest import CRUDBlueprint, BaseModel, db, init_db
+    >>> from flask_more_smorest import BaseModel, CRUDBlueprint, init_db
+    >>> from flask_more_smorest.perms import Api
+    >>> from flask_more_smorest.sqla import db
+    >>> from sqlalchemy.orm import Mapped, mapped_column
     >>>
     >>> app = Flask(__name__)
     >>> app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+    >>>
+    >>> class Product(BaseModel):
+    ...     name: Mapped[str] = mapped_column(db.String(100))
+    ...     price: Mapped[float] = mapped_column(db.Float)
+    >>>
     >>> init_db(app)
+    >>> api = Api(app)
     >>>
-    >>> # Create a CRUD blueprint for User model
-    >>> user_blueprint = CRUDBlueprint(
-    ...     'users', __name__,
-    ...     model='User',
-    ...     schema='UserSchema'
+    >>> # Create CRUD blueprint using model class directly
+    >>> products_bp = CRUDBlueprint(
+    ...     'products', __name__,
+    ...     model=Product,           # Use class (preferred)
+    ...     schema=Product.Schema,   # Auto-generated schema
+    ...     url_prefix='/api/products/'
     ... )
-    >>>
-    >>> app.register_blueprint(user_blueprint)
+    >>> api.register_blueprint(products_bp)
 
-Custom User Model Example:
-    >>> from flask_more_smorest import User
+User Authentication Example:
+    >>> from flask_more_smorest import User, UserBlueprint
     >>> from sqlalchemy.orm import Mapped, mapped_column
     >>> import sqlalchemy as sa
-    >>> import uuid
     >>>
-    >>> class CustomUser(User):
-    ...     # Add custom fields
-    ...     first_name: Mapped[str] = mapped_column(sa.String(50))
-    ...     organization_id: Mapped[uuid.UUID] = mapped_column(
-    ...         sa.ForeignKey('organization.id')
-    ...     )
+    >>> # Extend User model with custom fields
+    >>> class Employee(User):
+    ...     employee_id: Mapped[str] = mapped_column(sa.String(50))
+    ...     department: Mapped[str] = mapped_column(sa.String(100))
     ...
-    ...     # Override methods if needed
     ...     def _can_write(self) -> bool:
-    ...         # Custom logic: only verified users can write
-    ...         return self.email_verified and super()._can_write()
+    ...         # Custom permission logic
+    ...         return self.is_admin or self.id == get_current_user_id()
+    >>>
+    >>> # Create authentication blueprint
+    >>> auth_bp = UserBlueprint(
+    ...     model=Employee,
+    ...     schema=Employee.Schema
+    ... )
+    >>> api.register_blueprint(auth_bp)
+    >>> # Provides: POST /api/users/login/, GET /api/users/me/, and full CRUD
 """
 
 from .crud.blueprint_operationid import BlueprintOperationIdMixin
