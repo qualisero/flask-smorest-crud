@@ -4,7 +4,7 @@
 [![Python Support](https://img.shields.io/pypi/pyversions/flask-more-smorest.svg?v=0.2.2)](https://pypi.org/project/flask-more-smorest/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Flask-More-Smorest extends **Flask-Smorest** with a number of enhancements and goodies, with the sole goal of drastically reducing boilerplate and complexity when creating a new REST API.
+Flask-More-Smorest extends **Flask-Smorest** with a number of enhancements and goodies, with the sole goal of drastically reducing boilerplate and complexity when creating a new REST API with Flask and Flask-Smorest.
 
 ## Highlights
 
