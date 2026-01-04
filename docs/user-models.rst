@@ -10,7 +10,7 @@ The user system provides:
 
 - Pre-built ``User`` model with email/password authentication
 - Role-based access control with ``UserRole`` and ``DefaultUserRole``
-- JWT token management with ``UserToken`` for refresh tokens
+- JWT token management with ``Token`` objects (refresh/API tokens)
 - Profile and timestamp mixins for extended user data
 - Easy extension for custom user models
 
@@ -32,7 +32,7 @@ Import and use the default user models:
    UserRole(user=user, role=DefaultUserRole.ADMIN).save()
 
    # Verify password
-   if user.check_password("secret123"):
+   if user.is_password_correct("secret123"):
        print("Password correct!")
 
    # Check if user has a role
@@ -48,8 +48,8 @@ Fields
 ^^^^^^
 
 - ``email``: str - Unique email address (required)
-- ``password_hash``: str - Bcrypt hashed password
-- ``is_active``: bool - Whether user account is active (default: True)
+- ``password``: bytes | None - Hashed password storage (set via ``set_password``)
+- ``is_enabled``: bool - Whether user account is enabled (default: True)
 - ``id``: UUID - Inherited from BasePermsModel
 - ``created_at``, ``updated_at``: datetime - Inherited from BasePermsModel
 
@@ -66,7 +66,7 @@ Password Management:
    user.set_password("my-secure-password")
    
    # Check password
-   if user.check_password("my-secure-password"):
+   if user.is_password_correct("my-secure-password"):
        print("Correct!")
 
 Role Management:
@@ -89,7 +89,7 @@ Token Management:
 .. code-block:: python
 
    # Get user's tokens
-   tokens = user.tokens  # List of UserToken objects
+   tokens = user.tokens  # List of Token objects
 
 Default Roles
 -------------
@@ -101,8 +101,8 @@ Default Roles
    from flask_more_smorest.perms import DefaultUserRole
 
    # Available roles
+   DefaultUserRole.SUPERADMIN  # Super administrator
    DefaultUserRole.ADMIN       # Administrator
-   DefaultUserRole.MODERATOR   # Moderator  
    DefaultUserRole.USER        # Regular user
 
 Assigning Roles:
@@ -116,8 +116,8 @@ Assigning Roles:
    # Add admin role
    UserRole(user=user, role=DefaultUserRole.ADMIN).save()
    
-   # Add multiple roles
-   UserRole(user=user, role=DefaultUserRole.MODERATOR).save()
+   # Add another role
+   UserRole(user=user, role=DefaultUserRole.SUPERADMIN).save()
 
 Removing Roles:
 
@@ -135,6 +135,16 @@ User Authentication Blueprints
 ------------------------------
 
 The easiest way to add authentication is with ``UserBlueprint``:
+
+``UserBlueprint`` features:
+
+- Auto-generated CRUD endpoints for the configured user model (list, detail, create, update, delete)
+- Built-in authentication endpoints: ``POST /login/`` and ``GET /me/``
+- Respects all ``CRUDBlueprint`` options (``url_prefix``, ``methods``, ``skip_methods``, etc.)
+- Uses the provided ``model`` and ``schema`` classes (defaults to ``User`` and ``User.Schema``)
+- Automatically marks ``POST`` as public when ``model.PUBLIC_REGISTRATION`` is ``True``
+- Supports multiple instances (e.g., admin vs public endpoints)
+
 
 .. code-block:: python
 
@@ -164,16 +174,42 @@ Enable Public Registration:
 
 Customize UserBlueprint:
 
+You can either configure ``methods``/``skip_methods`` dictionaries or subclass ``UserBlueprint``.
+
 .. code-block:: python
 
    from flask_more_smorest.crud.crud_blueprint import CRUDMethod
 
    # Custom configuration
    custom_bp = UserBlueprint(
+       model=Employee,
+       schema=Employee.Schema,
        name="auth",
        url_prefix="/api/auth/",
        skip_methods=[CRUDMethod.DELETE],  # Disable user deletion
    )
+
+   # Override schema/args for CRUD create endpoint (e.g., invite-only signup)
+   from myapp.schemas import InviteSignupSchema
+
+   invite_bp = UserBlueprint(
+       methods={
+           CRUDMethod.POST: {
+               "arg_schema": InviteSignupSchema,
+               "schema": PublicUser.Schema,
+           }
+       }
+   )
+
+   # Subclass for custom login response or validation
+   class AdminUserBlueprint(UserBlueprint):
+       def _register_login_endpoint(self) -> None:
+           super()._register_login_endpoint()
+           # Additional admin-specific setup here
+
+   admin_bp = AdminUserBlueprint(model=AdminUser, schema=AdminUser.Schema)
+
+For deeper customization you can override ``_register_login_endpoint`` or ``_register_current_user_endpoint`` in a subclass and call ``super()`` to retain default behavior.
 
 JWT Authentication (Manual Implementation)
 ------------------------------------------
@@ -212,10 +248,10 @@ Manual Login Endpoint:
        data = request.get_json()
        user = User.query.filter_by(email=data["email"]).first()
        
-       if not user or not user.check_password(data["password"]):
+       if not user or not user.is_password_correct(data["password"]):
            return {"error": "Invalid credentials"}, 401
        
-       if not user.is_active:
+       if not user.is_enabled:
            return {"error": "Account disabled"}, 403
        
        access_token = create_access_token(identity=user.id)
@@ -242,28 +278,39 @@ Protected Endpoints:
 Token Management
 ----------------
 
-The ``UserToken`` model stores refresh tokens:
+Token Model
+-----------
+
+The ``Token`` model stores refresh/API tokens and delegates permissions to the owning user. Tokens inherit ``UserOwnershipMixin`` with ``__delegate_to_user__ = True`` so permissions mirror the owning user's permissions.
+
+Fields:
+
+- ``token``: str - Token value (refresh token, API key, etc.)
+- ``description``: str | None - Optional description for UI display
+- ``expires_at``: datetime | None - Expiration timestamp
+- ``revoked`` / ``revoked_at``: Track revocation state
 
 .. code-block:: python
 
-   from flask_more_smorest.perms import UserToken
+   from flask_more_smorest.perms import Token
    from flask_jwt_extended import create_refresh_token
 
    # Create and store token
    refresh_token = create_refresh_token(identity=user.id)
-   token = UserToken(
+   token = Token(
        user_id=user.id,
        token=refresh_token,
+       description="CLI token",
        expires_at=datetime.utcnow() + timedelta(days=30)
    )
    token.save()
 
    # Revoke token
-   token.delete()
+   token.update(revoked=True, revoked_at=datetime.utcnow())
 
    # Clean up expired tokens
-   UserToken.query.filter(
-       UserToken.expires_at < datetime.utcnow()
+   Token.query.filter(
+       Token.expires_at < datetime.utcnow()
    ).delete()
 
 Extending User Model
@@ -496,7 +543,7 @@ Here's a complete authentication system:
        data = request.get_json()
        user = User.query.filter_by(email=data["email"]).first()
        
-       if not user or not user.check_password(data["password"]):
+       if not user or not user.is_password_correct(data["password"]):
            return {"error": "Invalid credentials"}, 401
        
        access_token = create_access_token(identity=str(user.id))
@@ -515,7 +562,7 @@ Here's a complete authentication system:
        return {
            "id": str(user.id),
            "email": user.email,
-           "is_active": user.is_active,
+           "is_enabled": user.is_enabled,
            "roles": [role.role for role in user.roles],
        }
 

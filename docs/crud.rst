@@ -166,7 +166,7 @@ Field Equality
 
 .. code-block:: bash
 
-   GET /api/users/?username=john&is_active=true
+   GET /api/users/?username=john&is_enabled=true
 
 Date Range Filtering
 ^^^^^^^^^^^^^^^^^^^^
@@ -215,7 +215,7 @@ Boolean Filtering
 
 .. code-block:: bash
 
-   GET /api/users/?is_active=true
+   GET /api/users/?is_enabled=true
    GET /api/users/?is_admin=false
 
 Pagination
@@ -235,7 +235,7 @@ INDEX endpoints support automatic pagination:
    GET /api/users/?page=1&page_size=50
 
    # Combine with filters
-   GET /api/users/?page=2&page_size=10&is_active=true
+   GET /api/users/?page=2&page_size=10&is_enabled=true
 
 Response includes pagination metadata:
 
@@ -348,7 +348,7 @@ Add custom endpoints to your CRUD blueprint:
        """Custom endpoint: /api/users/stats/"""
        return {
            "total": User.query.count(),
-           "active": User.query.filter_by(is_active=True).count(),
+           "enabled": User.query.filter_by(is_enabled=True).count(),
        }
 
    @users.route("/<uuid:user_id>/activate/", methods=["POST"])
@@ -356,7 +356,7 @@ Add custom endpoints to your CRUD blueprint:
    def activate_user(user_id):
        """Custom endpoint: POST /api/users/<user_id>/activate/"""
        user = User.get_by_or_404(id=user_id)
-       user.update(is_active=True)
+       user.update(is_enabled=True)
        return user
 
 Public Endpoints

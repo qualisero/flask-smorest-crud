@@ -140,7 +140,7 @@ Unified mixin for user-owned resources with two configurable modes:
        UserOwnershipMixin
    )
 
-   class UserToken(HasUserMixin, UserOwnershipMixin, BasePermsModel):
+   class Token(HasUserMixin, UserOwnershipMixin, BasePermsModel):
        __delegate_to_user__ = True
        
        token: Mapped[str] = mapped_column(db.String(500))
@@ -202,7 +202,7 @@ Context Manager
    with bypass_perms():
        # All permission checks are disabled in this block
        user = User.get_by(email="system@example.com")
-       user.update(is_active=False)
+       user.update(is_enabled=False)
 
 Decorator
 ^^^^^^^^^
@@ -214,7 +214,7 @@ Decorator
    @bypass_perms()
    def system_cleanup():
        # Permissions disabled for this entire function
-       inactive_users = User.query.filter_by(is_active=False).all()
+       inactive_users = User.query.filter_by(is_enabled=False).all()
        for user in inactive_users:
            user.delete()
 

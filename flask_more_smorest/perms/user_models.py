@@ -155,7 +155,7 @@ class User(BasePermsModel):
 
     Import and use directly:
     ```python
-    from flask_more_smorest.user import User
+    from flask_more_smorest import User
 
     # User model is ready to use with all features
     user = User(email="test@example.com")
@@ -167,7 +167,7 @@ class User(BasePermsModel):
 
     Create custom user models by inheriting from this class:
     ```python
-    from flask_more_smorest.user import User
+    from flask_more_smorest import User
     from flask_more_smorest.database import db
     import sqlalchemy as sa
     from sqlalchemy.orm import Mapped, mapped_column
