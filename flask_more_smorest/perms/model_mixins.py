@@ -137,11 +137,11 @@ class HasUserMixin:
     @declared_attr
     def user(cls) -> Mapped["User"]:
         """Relationship to User model."""
+        from .user_models import User
+
         backref_name = cls._user_backref_name()
 
         # Add backref to User model, unless it already exists or is explicitly disabled
-        from .user_models import User
-
         if backref_name and (hasattr(User, backref_name) or backref_name in ("user_roles", "user_settings", "tokens")):
             backref_arg = None
         elif backref_name:
@@ -155,7 +155,8 @@ class HasUserMixin:
             # backref_name is None, skip backref
             backref_arg = None
 
-        return relationship("User", lazy="joined", foreign_keys=[cls.user_id], backref=backref_arg)  # type: ignore[list-item]
+        # Use lambda to reference the User class directly, avoiding string lookup ambiguity
+        return relationship(lambda: User, lazy="joined", foreign_keys=[cls.user_id], backref=backref_arg)  # type: ignore[list-item]
 
 
 class UserOwnershipMixin(HasUserMixin):

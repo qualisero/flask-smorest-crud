@@ -227,6 +227,25 @@ class User(BasePermsModel):
     password: Mapped[bytes | None] = mapped_column(db.LargeBinary(128), nullable=True)
     is_enabled: Mapped[bool] = mapped_column(db.Boolean(), default=True)
 
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        # Check for multi-table inheritance BEFORE SQLAlchemy processes the class
+        # SQLAlchemy's __init_subclass__ manipulates cls.__dict__, so we must check before calling super()
+        has_custom_tablename = "__tablename__" in cls.__dict__
+        has_custom_table_args = "__table_args__" in cls.__dict__
+
+        super().__init_subclass__(**kwargs)
+
+        # Don't override explicit __table_args__
+        if has_custom_table_args:
+            return
+
+        # Don't inject for multi-table inheritance
+        if has_custom_tablename:
+            return
+
+        # Inject for single-table inheritance (shares User's table)
+        cls.__table_args__ = {"extend_existing": True}
+
     # Core relationships that all User models inherit
     # Using enable_typechecks=False to allow UserRole subclasses
     @declared_attr
@@ -449,7 +468,7 @@ class UserRole(BasePermsModel):
     # Relationships
     domain: Mapped["Domain | None"] = relationship("Domain")
     user: Mapped["User"] = relationship(
-        "User",
+        lambda: User,  # Use lambda to get the actual User class, not string lookup
         back_populates="roles",
         enable_typechecks=False,  # allow User subclasses
     )

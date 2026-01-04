@@ -4,13 +4,13 @@ import uuid
 from flask import Flask
 from flask_jwt_extended import JWTManager
 
-from .user_models import User
-
 logger = logging.getLogger(__name__)
 
 
 def init_jwt(app: Flask) -> None:
     """Initialize JWTManager with user lookup callbacks."""
+    # Import User here to avoid premature table creation
+    from .user_models import User
 
     if not app.config.get("JWT_SECRET_KEY"):
         logger.warning("JWT_SECRET_KEY is not set! This is insecure for production environments.")

@@ -61,7 +61,7 @@ from .crud.query_filtering import generate_filter_schema, get_statements_from_fi
 
 # Import core blueprints
 # Import user models and authentication
-from .perms import Api, BasePermsModel, UserBlueprint, user_bp
+from .perms import Api, BasePermsModel, UserBlueprint
 from .perms import PermsBlueprint as CRUDBlueprint  # Make the Perms version the default
 from .perms.jwt import init_jwt
 
@@ -73,16 +73,6 @@ from .perms.model_mixins import (
     UserOwnershipMixin,
 )
 from .perms.perms_blueprint import PermsBlueprintMixin as BlueprintAccessMixin
-from .perms.user_models import (
-    DefaultUserRole,
-    Domain,
-    Token,
-    User,
-    UserRole,
-    UserSetting,
-    get_current_user_id,
-)
-from .perms.user_models import current_user as get_current_user
 
 # Import migration system
 # Import database and models
@@ -144,3 +134,43 @@ __all__ = [
     "convert_snake_to_camel",
     "__version__",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Lazy import user models to avoid premature table creation."""
+    if name == "user_bp":
+        from .perms import user_bp
+
+        globals()["user_bp"] = user_bp
+        return user_bp
+
+    if name in (
+        "User",
+        "UserRole",
+        "UserSetting",
+        "Domain",
+        "Token",
+        "DefaultUserRole",
+        "get_current_user",
+        "get_current_user_id",
+    ):
+        from .perms.user_models import (
+            DefaultUserRole,
+            Domain,
+            Token,
+            User,
+            UserRole,
+            UserSetting,
+            current_user,
+            get_current_user_id,
+        )
+
+        if name == "get_current_user":
+            globals()[name] = current_user
+            return current_user
+
+        # Cache and return the requested attribute
+        globals()[name] = locals()[name]
+        return locals()[name]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

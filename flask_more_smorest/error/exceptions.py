@@ -7,6 +7,7 @@ with automatic logging, debug information, and standardized error responses.
 import logging
 import sys
 import traceback
+import uuid
 from http import HTTPStatus
 from pprint import pformat
 from typing import TYPE_CHECKING
@@ -101,10 +102,11 @@ class ApiException(Exception):
         debug_context.update(kwargs)
 
         if True:  # TODO: check if auth is enabled
-            from ..perms import current_user, get_current_user_id
+            from ..perms.user_models import current_user, get_current_user_id
 
             try:
-                if user_id := get_current_user_id():
+                user_id: uuid.UUID | None = get_current_user_id()
+                if user_id:
                     debug_context["user"] = {
                         "id": user_id,
                         "roles": [r.role for r in current_user.roles],

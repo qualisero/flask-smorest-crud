@@ -172,5 +172,23 @@ class UserBlueprint(_get_perms_crud_blueprint()):  # type: ignore[misc]
             return current_user
 
 
-# Create default instance for backward compatibility
-user_bp = UserBlueprint()
+# Lazy creation of default instance for backward compatibility
+# This avoids importing User model at module level
+_user_bp: UserBlueprint | None = None
+
+
+def _get_default_user_bp() -> UserBlueprint:
+    """Get or create the default user_bp instance."""
+    global _user_bp
+    if _user_bp is None:
+        _user_bp = UserBlueprint()
+    return _user_bp
+
+
+# Make user_bp available as a module attribute via __getattr__ in perms/__init__.py
+# or by accessing this module's __getattr__
+def __getattr__(name: str) -> UserBlueprint:
+    """Lazy attribute access for default user_bp instance."""
+    if name == "user_bp":
+        return _get_default_user_bp()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
