@@ -136,6 +136,16 @@ User Authentication Blueprints
 
 The easiest way to add authentication is with ``UserBlueprint``:
 
+``UserBlueprint`` features:
+
+- Auto-generated CRUD endpoints for the configured user model (list, detail, create, update, delete)
+- Built-in authentication endpoints: ``POST /login/`` and ``GET /me/``
+- Respects all ``CRUDBlueprint`` options (``url_prefix``, ``methods``, ``skip_methods``, etc.)
+- Uses the provided ``model`` and ``schema`` classes (defaults to ``User`` and ``User.Schema``)
+- Automatically marks ``POST`` as public when ``model.PUBLIC_REGISTRATION`` is ``True``
+- Supports multiple instances (e.g., admin vs public endpoints)
+
+
 .. code-block:: python
 
    from flask_more_smorest import UserBlueprint
@@ -164,12 +174,16 @@ Enable Public Registration:
 
 Customize UserBlueprint:
 
+You can either configure ``methods``/``skip_methods`` dictionaries or subclass ``UserBlueprint``.
+
 .. code-block:: python
 
    from flask_more_smorest.crud.crud_blueprint import CRUDMethod
 
    # Custom configuration
    custom_bp = UserBlueprint(
+       model=Employee,
+       schema=Employee.Schema,
        name="auth",
        url_prefix="/api/auth/",
        skip_methods=[CRUDMethod.DELETE],  # Disable user deletion
@@ -187,7 +201,15 @@ Customize UserBlueprint:
        }
    )
 
-For deeper customization (custom login or token responses), subclass ``UserBlueprint`` and override ``_register_login_endpoint``/``_register_current_user_endpoint``.
+   # Subclass for custom login response or validation
+   class AdminUserBlueprint(UserBlueprint):
+       def _register_login_endpoint(self) -> None:
+           super()._register_login_endpoint()
+           # Additional admin-specific setup here
+
+   admin_bp = AdminUserBlueprint(model=AdminUser, schema=AdminUser.Schema)
+
+For deeper customization you can override ``_register_login_endpoint`` or ``_register_current_user_endpoint`` in a subclass and call ``super()`` to retain default behavior.
 
 JWT Authentication (Manual Implementation)
 ------------------------------------------
