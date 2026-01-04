@@ -1,6 +1,6 @@
 """User schemas."""
 
-from marshmallow import fields
+from marshmallow import fields, pre_load
 
 from ..sqla.base_model import BaseSchema
 from .user_models import User
@@ -17,6 +17,13 @@ class UserLoginSchema(UserSchema):
 
     class Meta:
         fields = ("email", "password")
+
+    @pre_load
+    def normalize_email(self, data: dict, **kwargs: object) -> dict:
+        """Normalize email to lowercase for case-insensitive login."""
+        if "email" in data and data["email"]:
+            data["email"] = data["email"].lower()
+        return data
 
 
 class TokenSchema(BaseSchema):
