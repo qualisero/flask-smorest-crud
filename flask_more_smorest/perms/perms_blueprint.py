@@ -37,7 +37,7 @@ class PermsBlueprintMixin:
         docstring: str,
         method_config: "MethodConfig",
     ) -> None:
-        """Configure endpoint admin decorator if needed.
+        """Configure endpoint admin/public decorator if needed.
 
         Args:
             view_cls: MethodView class containing the endpoint
@@ -46,9 +46,12 @@ class PermsBlueprintMixin:
             method_config: Configuration dict for the method
         """
         # TODO: test that method from both CRUDBlueprint and PermsBlueprintMixin are called
-        if hasattr(view_cls, method_name) and method_config.get("admin_only", False):
+        if hasattr(view_cls, method_name):
             method = getattr(view_cls, method_name)
-            self.admin_endpoint(method)
+            if method_config.get("admin_only", False):
+                self.admin_endpoint(method)
+            if method_config.get("public", False):
+                self.public_endpoint(method)
 
     def public_endpoint(self, func: Callable) -> Callable:
         """Decorator to mark an endpoint as public.

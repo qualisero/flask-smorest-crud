@@ -48,6 +48,7 @@ class MethodConfig(TypedDict, total=False):
     schema: type[Schema] | str
     arg_schema: type[Schema] | str
     admin_only: bool
+    public: bool
 
 
 MethodConfigMapping = Mapping[CRUDMethod, MethodConfig | bool]
@@ -523,7 +524,6 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
                     ) -> BaseModel:
                         """Create and return new resource."""
                         new_object.update(commit=True, **kwargs)
-                        new_object.save()
                         return new_object
 
             self._configure_endpoint(

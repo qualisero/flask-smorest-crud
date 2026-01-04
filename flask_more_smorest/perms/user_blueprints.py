@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from flask_jwt_extended import create_access_token
 
-from ..crud.crud_blueprint import CRUDMethod, MethodConfigMapping
+from ..crud.crud_blueprint import CRUDMethod, MethodConfig, MethodConfigMapping
 from ..error import UnauthorizedError
 
 if TYPE_CHECKING:
@@ -32,7 +32,8 @@ class UserBlueprint(_get_perms_crud_blueprint()):  # type: ignore[misc]
     - Public login endpoint (POST /login/)
     - Current user profile endpoint (GET /me/)
 
-    The login endpoint allows public registration if User.PUBLIC_REGISTRATION is True.
+    When the User model has PUBLIC_REGISTRATION=True, the POST endpoint is
+    automatically made public to allow unauthenticated user registration.
 
     Args:
         name: Blueprint name (default: "users")
@@ -53,6 +54,11 @@ class UserBlueprint(_get_perms_crud_blueprint()):  # type: ignore[misc]
         ...     url_prefix="/api/v2/users/",
         ...     skip_methods=[CRUDMethod.DELETE]
         ... )
+
+        >>> # Enable public registration
+        >>> class PublicUser(User):
+        ...     PUBLIC_REGISTRATION = True
+        >>> public_bp = UserBlueprint(model=PublicUser)
     """
 
     def __init__(
@@ -81,6 +87,26 @@ class UserBlueprint(_get_perms_crud_blueprint()):  # type: ignore[misc]
         # Use default methods if not specified
         if methods is None:
             methods = list(CRUDMethod)
+
+        # Check if PUBLIC_REGISTRATION is enabled on the model
+        # If so, make the POST endpoint public
+        public_registration = getattr(model, "PUBLIC_REGISTRATION", False)
+        if public_registration and methods is not None:
+            # Convert methods list to dict if needed to add public config
+            if isinstance(methods, list):
+                methods_dict: dict[CRUDMethod, MethodConfig | bool] = {m: {} for m in methods}
+            else:
+                methods_dict = dict(methods)
+            # Mark POST as public (not requiring authentication)
+            if CRUDMethod.POST in methods_dict:
+                post_config = methods_dict[CRUDMethod.POST]
+                if post_config is False:
+                    pass  # POST is disabled, don't modify
+                elif isinstance(post_config, dict):
+                    post_config["public"] = True
+                else:
+                    methods_dict[CRUDMethod.POST] = {"public": True}
+            methods = methods_dict
 
         super().__init__(
             name=name,

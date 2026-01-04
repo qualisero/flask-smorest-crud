@@ -282,6 +282,77 @@ class TestUserBlueprintWithCustomUser:
         # Verify PUBLIC_REGISTRATION flag is set
         assert CustomUser.PUBLIC_REGISTRATION is True
 
+    def test_public_registration_makes_post_endpoint_public(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that PUBLIC_REGISTRATION=True makes POST endpoint public."""
+        from flask_more_smorest.crud.crud_blueprint import CRUDMethod
+
+        # Define a custom User class with PUBLIC_REGISTRATION
+        class PublicUser(User):
+            PUBLIC_REGISTRATION = True
+
+        # Create blueprint with public registration user
+        bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+        api.register_blueprint(bp)
+
+        # Verify POST method config has public=True
+        post_config = bp._config.methods.get(CRUDMethod.POST, {})
+        assert post_config.get("public") is True, "POST should be marked as public when PUBLIC_REGISTRATION=True"
+
+    def test_public_registration_allows_unauthenticated_user_creation(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that PUBLIC_REGISTRATION=True allows creating users without authentication."""
+
+        # Define a custom User class with PUBLIC_REGISTRATION
+        class PublicUser(User):
+            PUBLIC_REGISTRATION = True
+
+        # Recreate tables to include PublicUser
+        db.drop_all()
+        db.create_all()
+
+        # Create blueprint with public registration user
+        bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+        api.register_blueprint(bp)
+
+        client = test_app.test_client()
+
+        # Try to create a user without authentication - should succeed
+        response = client.post(
+            "/api/users/",
+            json={"email": "newuser@example.com", "password": "password123"},
+        )
+
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.get_json()}"
+        data = response.get_json()
+        assert data["email"] == "newuser@example.com"
+
+    def test_no_public_registration_requires_auth_for_post(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that without PUBLIC_REGISTRATION, POST requires authentication."""
+        from flask_more_smorest.crud.crud_blueprint import CRUDMethod
+
+        # Default User has PUBLIC_REGISTRATION=False
+        bp = UserBlueprint()
+        api.register_blueprint(bp)
+
+        # Verify POST method config does NOT have public=True
+        post_config = bp._config.methods.get(CRUDMethod.POST, {})
+        assert post_config.get("public") is not True, "POST should NOT be public by default"
+
+        client = test_app.test_client()
+
+        # Try to create a user without authentication - should fail with 401
+        response = client.post(
+            "/api/users/",
+            json={"email": "newuser@example.com", "password": "password123"},
+        )
+
+        assert response.status_code == 401, f"Expected 401, got {response.status_code}"
+
 
 class TestUserBlueprintIntegration:
     """Integration tests for UserBlueprint with full app setup."""
