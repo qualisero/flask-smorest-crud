@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-05
+
+### Added
+- **Case-insensitive email handling**: Emails are now automatically normalized to lowercase
+  - `@validates("email")` decorator on User model ensures consistent storage
+  - `@pre_load` hook in UserLoginSchema for case-insensitive login
+  - Prevents duplicate registrations with different case variations
+  - Users can login with any case: `user@example.com`, `USER@EXAMPLE.COM`, `User@Example.Com`
+  - Efficient database queries (uses indexes properly)
+- **extend_existing support for User model**: Added `__table_args__ = {"extend_existing": True}`
+  - Fixes SQLAlchemy table redefinition errors in function-scoped test fixtures
+  - Enables safe module reloading during development
+  - Simple inheritance works automatically: `class EmployeeUser(User): ...`
+  - Mixin inheritance works automatically: `class CustomUser(User, ProfileMixin): ...`
+  - No explicit `__table_args__` needed in subclasses for single-table inheritance
+
+### Changed
+- Email storage is now always lowercase in the database
+  - Existing installations can optionally run: `UPDATE user SET email = LOWER(email);`
+  - Not required but recommended for data consistency
+
+### Fixed
+- User model inheritance errors with function-scoped test fixtures
+- Case-sensitive email lookup issues in authentication
+
 ## [0.2.3] - 2026-01-02
 
 ### Added
