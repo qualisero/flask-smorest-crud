@@ -31,7 +31,7 @@ from flask_more_smorest import (
 )
 from flask_more_smorest.error.exceptions import ForbiddenError
 from flask_more_smorest.perms.base_perms_model import BasePermsModel
-from flask_more_smorest.perms.model_mixins import UserOwnershipMixin
+from flask_more_smorest.perms.model_mixins import ProfileMixin, UserOwnershipMixin
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient
@@ -73,7 +73,7 @@ def db_session(user_perms_app: Flask) -> Iterator["scoped_session"]:
         db.drop_all()
 
 
-class CustomUser(User):
+class CustomUser(ProfileMixin, User):
     """Custom User class that extends the base User class.
 
     Adds additional fields specific to this application:

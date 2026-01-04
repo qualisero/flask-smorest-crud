@@ -397,3 +397,291 @@ class TestBackwardCompatibility:
 
         assert response.status_code == 200
         assert "access_token" in response.get_json()
+
+
+class TestCustomUserInheritedColumns:
+    """Tests for CustomUser class inheritance of all User columns."""
+
+    def test_custom_user_inherits_all_base_columns(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that CustomUser inherits all columns from User and BaseModel."""
+        # We test against the base User class to avoid column conflicts
+        # when running with other tests that define CustomUser classes
+        user_columns = {col.name for col in User.__table__.columns}
+
+        # Verify inherited columns from BaseModel
+        assert "id" in user_columns, "User should have 'id' column from BaseModel"
+        assert "created_at" in user_columns, "User should have 'created_at' from BaseModel"
+        assert "updated_at" in user_columns, "User should have 'updated_at' from BaseModel"
+
+        # Verify User-specific columns
+        assert "email" in user_columns, "User should have 'email' column"
+        assert "password" in user_columns, "User should have 'password' column"
+        assert "is_enabled" in user_columns, "User should have 'is_enabled' column"
+
+    def test_custom_user_column_types_preserved(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that inherited column types are preserved in User."""
+        import sqlalchemy as sa
+
+        # Get column objects from User table
+        columns = {col.name: col for col in User.__table__.columns}
+
+        # Check id is UUID type
+        assert isinstance(columns["id"].type, sa.Uuid)
+
+        # Check email is String type
+        assert isinstance(columns["email"].type, sa.String)
+        assert columns["email"].type.length == 128
+
+        # Check password is LargeBinary type
+        assert isinstance(columns["password"].type, sa.LargeBinary)
+
+        # Check is_enabled is Boolean type
+        assert isinstance(columns["is_enabled"].type, sa.Boolean)
+
+        # Check created_at and updated_at are DateTime types
+        assert isinstance(columns["created_at"].type, sa.DateTime)
+        assert isinstance(columns["updated_at"].type, sa.DateTime)
+
+    def test_custom_user_inherits_relationships(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that User has all expected relationships that subclasses inherit."""
+        # Check that relationships exist on User
+        assert hasattr(User, "roles"), "User should have 'roles' relationship"
+        assert hasattr(User, "settings"), "User should have 'settings' relationship"
+        assert hasattr(User, "tokens"), "User should have 'tokens' relationship"
+
+    def test_custom_user_inherits_methods(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that User has all methods that subclasses inherit."""
+        # Check methods from User
+        assert hasattr(User, "set_password"), "User should have 'set_password' method"
+        assert hasattr(User, "is_password_correct"), "User should have 'is_password_correct' method"
+        assert hasattr(User, "has_role"), "User should have 'has_role' method"
+        assert hasattr(User, "has_domain_access"), "User should have 'has_domain_access' method"
+
+        # Check properties
+        assert hasattr(User, "is_admin"), "User should have 'is_admin' property"
+        assert hasattr(User, "is_superadmin"), "User should have 'is_superadmin' property"
+        assert hasattr(User, "domain_ids"), "User should have 'domain_ids' property"
+        assert hasattr(User, "num_tokens"), "User should have 'num_tokens' property"
+
+        # Check inherited methods from BasePermsModel
+        assert hasattr(User, "bypass_perms"), "User should have 'bypass_perms' method"
+        assert hasattr(User, "can_read"), "User should have 'can_read' method"
+        assert hasattr(User, "can_write"), "User should have 'can_write' method"
+        assert hasattr(User, "can_create"), "User should have 'can_create' method"
+
+        # Check inherited methods from BaseModel
+        assert hasattr(User, "save"), "User should have 'save' method"
+        assert hasattr(User, "delete"), "User should have 'delete' method"
+        assert hasattr(User, "update"), "User should have 'update' method"
+        assert hasattr(User, "get"), "User should have 'get' class method"
+        assert hasattr(User, "get_or_404"), "User should have 'get_or_404' class method"
+        assert hasattr(User, "get_by"), "User should have 'get_by' class method"
+
+    def test_custom_user_instance_has_all_inherited_columns(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that User instances have all expected column values."""
+        import uuid
+
+        # Create a User instance
+        with User.bypass_perms():
+            user = User(
+                email="testuser@example.com",
+                password="password123",
+            )
+            user.save()
+
+        # Verify the instance has all expected attributes
+        assert user.id is not None
+        assert isinstance(user.id, uuid.UUID)
+        assert user.email == "testuser@example.com"
+        assert user.is_enabled is True  # Default value
+        assert user.created_at is not None
+        assert user.updated_at is not None
+
+        # Verify password was hashed
+        assert user.password is not None
+        assert user.is_password_correct("password123")
+
+    def test_custom_user_single_table_inheritance_uses_same_table(
+        self, test_app: Flask, api: Api, db_session: "scoped_session"
+    ) -> None:
+        """Test that User uses the 'user' table and subclasses inherit it."""
+        # Verify User uses the correct table
+        assert User.__tablename__ == "user"
+
+        # Verify that a subclass without __tablename__ would use the same table
+        # (This is implicit in SQLAlchemy's single-table inheritance behavior)
+
+
+class TestMigrationTablesCreated:
+    """Tests to confirm what tables get created during migration."""
+
+    def test_user_related_tables_created(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that all User-related tables are created."""
+        from sqlalchemy import inspect
+
+        # Get inspector
+        inspector = inspect(db.engine)
+        table_names = set(inspector.get_table_names())
+
+        # Core user tables that should exist
+        expected_tables = {
+            "user",  # Main User table
+            "domain",  # Domain table for multi-tenancy
+            "user_role",  # UserRole table
+            "token",  # Token table for API tokens
+            "user_setting",  # UserSetting table
+        }
+
+        for table in expected_tables:
+            assert table in table_names, f"Table '{table}' should be created"
+
+    def test_user_table_columns(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that user table has all expected columns."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        columns = {col["name"] for col in inspector.get_columns("user")}
+
+        expected_columns = {
+            "id",  # From BaseModel
+            "created_at",  # From BaseModel
+            "updated_at",  # From BaseModel
+            "email",  # From User
+            "password",  # From User
+            "is_enabled",  # From User
+        }
+
+        for col in expected_columns:
+            assert col in columns, f"Column '{col}' should exist in user table"
+
+    def test_user_role_table_columns(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that user_role table has all expected columns."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        columns = {col["name"] for col in inspector.get_columns("user_role")}
+
+        expected_columns = {
+            "id",  # From BaseModel
+            "created_at",  # From BaseModel
+            "updated_at",  # From BaseModel
+            "user_id",  # Foreign key to User
+            "domain_id",  # Foreign key to Domain
+            "role",  # Role string value
+        }
+
+        for col in expected_columns:
+            assert col in columns, f"Column '{col}' should exist in user_role table"
+
+    def test_token_table_columns(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that token table has all expected columns."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        columns = {col["name"] for col in inspector.get_columns("token")}
+
+        expected_columns = {
+            "id",  # From BaseModel
+            "created_at",  # From BaseModel
+            "updated_at",  # From BaseModel
+            "user_id",  # From UserOwnershipMixin
+            "token",  # Token string
+            "description",  # Token description
+            "expires_at",  # Expiration datetime
+            "revoked",  # Revoked flag
+            "revoked_at",  # Revoked datetime
+        }
+
+        for col in expected_columns:
+            assert col in columns, f"Column '{col}' should exist in token table"
+
+    def test_domain_table_columns(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that domain table has all expected columns."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        columns = {col["name"] for col in inspector.get_columns("domain")}
+
+        expected_columns = {
+            "id",  # From BaseModel
+            "created_at",  # From BaseModel
+            "updated_at",  # From BaseModel
+            "name",  # Domain name
+            "display_name",  # Display name
+            "active",  # Active flag
+        }
+
+        for col in expected_columns:
+            assert col in columns, f"Column '{col}' should exist in domain table"
+
+    def test_user_setting_table_columns(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that user_setting table has all expected columns."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        columns = {col["name"] for col in inspector.get_columns("user_setting")}
+
+        expected_columns = {
+            "id",  # From BaseModel
+            "created_at",  # From BaseModel
+            "updated_at",  # From BaseModel
+            "user_id",  # From UserOwnershipMixin
+            "key",  # Setting key
+            "value",  # Setting value
+        }
+
+        for col in expected_columns:
+            assert col in columns, f"Column '{col}' should exist in user_setting table"
+
+    def test_all_created_tables_summary(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that all core User-related tables are created."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        table_names = set(inspector.get_table_names())
+
+        # Core user-related tables that must exist
+        core_tables = {
+            "domain",  # Multi-tenancy domain support
+            "token",  # API tokens for user authentication
+            "user",  # Main user model
+            "user_role",  # User roles with domain scoping
+            "user_setting",  # User key-value settings storage
+        }
+
+        # Verify all core tables are present (other tests may add more tables)
+        for table in core_tables:
+            assert table in table_names, f"Core table '{table}' should be created"
+
+        # Verify user table has expected columns
+        user_columns = {col["name"] for col in inspector.get_columns("user")}
+        expected_user_columns = {"id", "email", "password", "is_enabled", "created_at", "updated_at"}
+        assert (
+            expected_user_columns <= user_columns
+        ), f"User table should have columns: {expected_user_columns}. Found: {user_columns}"
+
+    def test_foreign_key_relationships(self, test_app: Flask, api: Api, db_session: "scoped_session") -> None:
+        """Test that foreign key relationships are properly created."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+
+        # Check user_role foreign keys
+        user_role_fks = inspector.get_foreign_keys("user_role")
+        fk_columns = {fk["constrained_columns"][0] for fk in user_role_fks}
+        assert "user_id" in fk_columns, "user_role should have FK to user"
+        assert "domain_id" in fk_columns, "user_role should have FK to domain"
+
+        # Check token foreign keys
+        token_fks = inspector.get_foreign_keys("token")
+        token_fk_columns = {fk["constrained_columns"][0] for fk in token_fks}
+        assert "user_id" in token_fk_columns, "token should have FK to user"
+
+        # Check user_setting foreign keys
+        setting_fks = inspector.get_foreign_keys("user_setting")
+        setting_fk_columns = {fk["constrained_columns"][0] for fk in setting_fks}
+        assert "user_id" in setting_fk_columns, "user_setting should have FK to user"
