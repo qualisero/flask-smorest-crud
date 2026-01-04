@@ -5,12 +5,11 @@ endpoints as public or admin-only.
 """
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 from flask.views import MethodView
 
-if TYPE_CHECKING:
-    from ..crud.crud_blueprint import MethodConfig
+from ..crud import CRUDBlueprint as CRUDBlueprintBase
+from ..crud.crud_blueprint import MethodConfig
 
 
 class PermsBlueprintMixin:
@@ -101,3 +100,22 @@ class PermsBlueprintMixin:
         else:
             func.__doc__ += " | 🔑 Admin only"
         return func
+
+
+class PermsBlueprint(CRUDBlueprintBase, PermsBlueprintMixin):
+    """CRUD Blueprint with permission annotations.
+
+    Combines CRUDBlueprint functionality with PermsBlueprintMixin
+    to provide automatic CRUD operations with permission checking support.
+    """
+
+    def _configure_endpoint(
+        self,
+        view_cls: type[MethodView],
+        method_name: str,
+        docstring: str,
+        method_config: MethodConfig,
+    ) -> None:
+        # Call each mixin's implementation explicitly
+        PermsBlueprintMixin._configure_endpoint(self, view_cls, method_name, docstring, method_config)
+        CRUDBlueprintBase._configure_endpoint(self, view_cls, method_name, docstring, method_config)

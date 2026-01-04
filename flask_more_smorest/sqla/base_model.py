@@ -8,7 +8,7 @@ import datetime as dt
 import uuid
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from typing import Any, Self, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Self, TypeAlias, cast
 
 import sqlalchemy as sa
 from flask import request
@@ -190,6 +190,11 @@ class BaseModel(db.Model, metaclass=BaseModelMeta):  # type: ignore[name-defined
     """
 
     __abstract__ = True
+
+    if TYPE_CHECKING:
+
+        class Schema(BaseSchema):
+            pass
 
     id: Mapped[uuid.UUID] = mapped_column(
         sa.Uuid(as_uuid=True),

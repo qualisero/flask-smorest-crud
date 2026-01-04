@@ -3,7 +3,7 @@
 import pytest
 from werkzeug.exceptions import BadRequest
 
-from flask_more_smorest.pagination import CRUDPaginationMixin
+from flask_more_smorest.crud.pagination import CRUDPaginationMixin
 
 
 class DummyPagination(CRUDPaginationMixin):

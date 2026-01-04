@@ -21,10 +21,11 @@ from marshmallow import RAISE, Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema
 from sqlalchemy.orm import scoped_session
 
-from flask_more_smorest.pagination import CRUDPaginationMixin
 from flask_more_smorest.sqla.base_model import BaseModel
 
 from ..utils import convert_snake_to_camel
+from .blueprint_operationid import BlueprintOperationIdMixin
+from .pagination import CRUDPaginationMixin
 from .query_filtering import generate_filter_schema, get_statements_from_filters
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ class CRUDConfig:
     methods: dict[CRUDMethod, MethodConfig]
 
 
-class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
+class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
     """Blueprint subclass that automatically registers CRUD routes.
 
     This class extends Flask-Smorest Blueprint to provide automatic CRUD
@@ -134,6 +135,7 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
     """
 
     _db_session: Session | scoped_session[Session]
+    _config: CRUDConfig
 
     def __init__(
         self,
@@ -165,7 +167,7 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
         else:
             self._db_session = db_session
 
-        config = self._build_config(
+        self._config = self._build_config(
             name=name,
             import_name=import_name,
             model=model,
@@ -185,15 +187,15 @@ class CRUDBlueprint(CRUDPaginationMixin, Blueprint):
             static_folder=static_folder,
             static_url_path=static_url_path,
             template_folder=template_folder,
-            url_prefix=url_prefix or config.url_prefix,
+            url_prefix=url_prefix or self._config.url_prefix,
             subdomain=subdomain,
             url_defaults=url_defaults,
             root_path=root_path,
             cli_group=cli_group,
         )
 
-        update_schema = self._prepare_update_schema(config)
-        self._register_crud_routes(config, update_schema)
+        update_schema = self._prepare_update_schema(self._config)
+        self._register_crud_routes(self._config, update_schema)
 
     def _build_config(
         self,

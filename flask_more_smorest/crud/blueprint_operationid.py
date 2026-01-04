@@ -11,7 +11,7 @@ from typing import Any, Final
 from flask.views import MethodView
 from flask_smorest import Blueprint
 
-from .utils import convert_snake_to_camel
+from ..utils import convert_snake_to_camel
 
 HTTP_METHOD_OPERATION_MAP: Final[dict[str, str]] = {
     "patch": "update",
@@ -20,8 +20,6 @@ HTTP_METHOD_OPERATION_MAP: Final[dict[str, str]] = {
     "post": "create",
     "put": "replace",
 }
-
-__all__ = ["BlueprintOperationIdMixin", "HTTP_METHOD_OPERATION_MAP"]
 
 
 class BlueprintOperationIdMixin(Blueprint):

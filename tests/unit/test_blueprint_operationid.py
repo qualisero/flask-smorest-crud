@@ -1,8 +1,12 @@
 """Unit tests for BlueprintOperationIdMixin."""
 
+# pyright: reportAttributeAccessIssue=false
+
+from typing import Any
+
 from flask.views import MethodView
 
-from flask_more_smorest.blueprint_operationid import (
+from flask_more_smorest.crud.blueprint_operationid import (
     HTTP_METHOD_OPERATION_MAP,
     BlueprintOperationIdMixin,
 )
@@ -42,22 +46,22 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
             # Define a MethodView class
             @bp.route("/")
-            class Users(MethodView):
+            class Products(MethodView):
                 methods = ["GET"]
 
-                def get(self) -> dict:
-                    return {"users": []}
+                def get(self) -> dict[str, list[Any]]:
+                    return {"products": []}
 
             # Check that operationId was set
-            get_method = Users.get
+            get_method = Products.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "listUsers"
+            assert apidoc["manual_doc"]["operationId"] == "listProducts"
 
     def test_operation_id_generation_handles_plural_class_names(self) -> None:
         """Plural MethodView class names should drop the trailing 's'."""
@@ -66,19 +70,19 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("companies", __name__)
+            bp = BlueprintOperationIdMixin("items", __name__)
 
             @bp.route("/")
-            class Companies(MethodView):
+            class Items(MethodView):
                 methods = ["GET"]
 
-                def get(self) -> dict:
-                    return {"companies": []}
+                def get(self) -> dict[str, list[Any]]:
+                    return {"items": []}
 
-            get_method = Companies.get
+            get_method = Items.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
-            assert apidoc["manual_doc"]["operationId"] == "listCompanies"
+            assert apidoc["manual_doc"]["operationId"] == "listItems"
 
     def test_operation_id_generation_for_get_endpoint(self) -> None:
         """Test operationId generation for GET single item endpoint."""
@@ -87,20 +91,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
-            @bp.route("/<int:user_id>")
-            class User(MethodView):
+            @bp.route("/<int:product_id>")
+            class Product(MethodView):
                 methods = ["GET"]
 
-                def get(self, user_id: str) -> dict:
-                    return {"user": {}}
+                def get(self, product_id: int) -> dict[str, dict[str, Any]]:
+                    return {"product": {}}
 
-            get_method = User.get
+            get_method = Product.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "getUser"
+            assert apidoc["manual_doc"]["operationId"] == "getProduct"
 
     def test_operation_id_generation_for_post_endpoint(self) -> None:
         """Test operationId generation for POST endpoint."""
@@ -109,20 +113,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
             @bp.route("/")
-            class Users(MethodView):
+            class Products(MethodView):
                 methods = ["POST"]
 
-                def post(self) -> dict:
-                    return {"user": {}}
+                def post(self) -> dict[str, dict[str, Any]]:
+                    return {"product": {}}
 
-            post_method = Users.post
+            post_method = Products.post
             apidoc = getattr(post_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "createUsers"
+            assert apidoc["manual_doc"]["operationId"] == "createProducts"
 
     def test_operation_id_generation_for_patch_endpoint(self) -> None:
         """Test operationId generation for PATCH endpoint."""
@@ -131,20 +135,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
-            @bp.route("/<int:user_id>")
-            class User(MethodView):
+            @bp.route("/<int:product_id>")
+            class Product(MethodView):
                 methods = ["PATCH"]
 
-                def patch(self, user_id: str) -> dict:
-                    return {"user": {}}
+                def patch(self, product_id: int) -> dict[str, dict[str, Any]]:
+                    return {"product": {}}
 
-            patch_method = User.patch
+            patch_method = Product.patch
             apidoc = getattr(patch_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "updateUser"
+            assert apidoc["manual_doc"]["operationId"] == "updateProduct"
 
     def test_operation_id_generation_for_delete_endpoint(self) -> None:
         """Test operationId generation for DELETE endpoint."""
@@ -153,20 +157,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
-            @bp.route("/<int:user_id>")
-            class User(MethodView):
+            @bp.route("/<int:product_id>")
+            class Product(MethodView):
                 methods = ["DELETE"]
 
-                def delete(self, user_id: str) -> tuple[str, int]:
+                def delete(self, product_id: int) -> tuple[str, int]:
                     return "", 204
 
-            delete_method = User.delete
+            delete_method = Product.delete
             apidoc = getattr(delete_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "deleteUser"
+            assert apidoc["manual_doc"]["operationId"] == "deleteProduct"
 
     def test_operation_id_with_snake_case_class_name(self) -> None:
         """Test operationId generation with snake_case class name."""
@@ -175,20 +179,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("user_profiles", __name__)
+            bp = BlueprintOperationIdMixin("product_reviews", __name__)
 
-            @bp.route("/<int:user_profile_id>")
-            class UserProfile(MethodView):
+            @bp.route("/<int:review_id>")
+            class ProductReview(MethodView):
                 methods = ["GET"]
 
-                def get(self, user_profile_id: str) -> dict:
-                    return {"profile": {}}
+                def get(self, review_id: int) -> dict[str, dict[str, Any]]:
+                    return {"review": {}}
 
-            get_method = UserProfile.get
+            get_method = ProductReview.get
             apidoc = getattr(get_method, "_apidoc", {})
             assert "manual_doc" in apidoc
             assert "operationId" in apidoc["manual_doc"]
-            assert apidoc["manual_doc"]["operationId"] == "getUserProfile"
+            assert apidoc["manual_doc"]["operationId"] == "getProductReview"
 
     def test_manual_operation_id_not_overridden(self) -> None:
         """Test that manually set operationId is not overridden."""
@@ -197,20 +201,20 @@ class TestBlueprintOperationIdMixin:
         app = Flask(__name__)
 
         with app.app_context():
-            bp = BlueprintOperationIdMixin("users", __name__)
+            bp = BlueprintOperationIdMixin("products", __name__)
 
-            @bp.route("/<int:user_id>")
-            class User(MethodView):
+            @bp.route("/<int:product_id>")
+            class Product(MethodView):
                 methods = ["GET"]
 
-                @bp.doc(operationId="customGetUser")
-                def get(self, user_id: str) -> dict:
-                    return {"user": {}}
+                @bp.doc(operationId="customGetProduct")
+                def get(self, product_id: int) -> dict[str, dict[str, Any]]:
+                    return {"product": {}}
 
-            get_method = User.get
+            get_method = Product.get
             apidoc = getattr(get_method, "_apidoc", {})
             # Manual operationId should be preserved
-            assert apidoc["manual_doc"]["operationId"] == "customGetUser"
+            assert apidoc["manual_doc"]["operationId"] == "customGetProduct"
 
     def test_operation_id_for_function_route(self) -> None:
         """Test operationId generation for function-based routes."""
@@ -222,7 +226,7 @@ class TestBlueprintOperationIdMixin:
             bp = BlueprintOperationIdMixin("test", __name__)
 
             @bp.route("/custom")
-            def custom_endpoint() -> dict:
+            def custom_endpoint() -> dict[str, str]:
                 return {"message": "success"}
 
             # For function-based routes, use function name
