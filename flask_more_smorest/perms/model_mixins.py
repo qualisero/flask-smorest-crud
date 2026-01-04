@@ -185,7 +185,7 @@ class UserOwnershipMixin(HasUserMixin):
         ...     # Permission: user_id == current_user_id
 
     Example (Delegated Permissions):
-        >>> class UserToken(UserOwnershipMixin, BasePermsModel):
+        >>> class Token(UserOwnershipMixin, BasePermsModel):
         ...     __delegate_to_user__ = True
         ...     token: Mapped[str] = mapped_column(sa.String(500))
         ...     # Permission: delegates to self.user._can_write()
