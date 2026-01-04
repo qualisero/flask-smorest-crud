@@ -92,7 +92,7 @@ For advanced configuration (custom schemas, admin-only endpoints, etc.), see the
 
 ## Working with models
 
-Use `BaseModel` to get UUID keys, timestamp tracking, and auto-generated Marshmallow schemas:
+Use `BaseModel` for simple models with UUID keys, timestamp tracking, and auto-generated Marshmallow schemas:
 
 ```python
 from flask_more_smorest import BaseModel
@@ -103,12 +103,31 @@ class Critter(BaseModel):
     name: Mapped[str] = mapped_column(db.String(100), nullable=False)
     species: Mapped[str] = mapped_column(db.String(50), nullable=False)
     cuteness_level: Mapped[int] = mapped_column(db.Integer, default=10)
-
-    def _can_write(self) -> bool:  # optional permission hook
-        return self.is_current_user_admin()
 ```
 
-**Auto-generated schema:** `Critter.Schema` is automatically created with all fields, plus `is_writable` for permission checking. Use it directly in blueprints—no need to define custom schemas unless you need special validation.
+**Auto-generated schema:** `Critter.Schema` is automatically created with all fields. Use it directly in blueprints—no need to define custom schemas unless you need special validation.
+
+### Adding permission checks
+
+Use `BasePermsModel` when you need permission hooks:
+
+```python
+from flask_more_smorest.perms import BasePermsModel
+from flask_more_smorest.sqla import db
+from sqlalchemy.orm import Mapped, mapped_column
+
+class Critter(BasePermsModel):
+    name: Mapped[str] = mapped_column(db.String(100), nullable=False)
+    species: Mapped[str] = mapped_column(db.String(50), nullable=False)
+
+    def _can_write(self) -> bool:
+        return self.is_current_user_admin()
+
+    def _can_read(self) -> bool:
+        return True  # Anyone can read
+```
+
+`BasePermsModel` adds `_can_read()`, `_can_write()`, and `_can_create()` hooks that are checked automatically on CRUD operations.
 
 ## Built-in user authentication
 
