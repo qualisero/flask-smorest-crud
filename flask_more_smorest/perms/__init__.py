@@ -4,11 +4,6 @@ This module provides the permissions system including the Api with auth,
 BasePermsModel with permission checks, user models, and PermsBlueprintMixin.
 """
 
-from flask.views import MethodView
-
-from ..blueprint_operationid import BlueprintOperationIdMixin
-from ..crud import CRUDBlueprint as CRUDBlueprintBase
-from ..crud.crud_blueprint import MethodConfig
 from .api import Api
 from .base_perms_model import BasePermsModel
 from .jwt import init_jwt
@@ -19,7 +14,8 @@ from .model_mixins import (
     TimestampMixin,
     UserOwnershipMixin,
 )
-from .perms_blueprint import PermsBlueprintMixin
+from .perms_blueprint import PermsBlueprint, PermsBlueprintMixin
+from .user_blueprints import UserBlueprint, user_bp
 from .user_models import (
     Domain,
     Token,
@@ -27,28 +23,10 @@ from .user_models import (
     UserRole,
     UserSetting,
     current_user,
+    get_current_user,
     get_current_user_id,
 )
-
-
-class CRUDBlueprint(CRUDBlueprintBase, PermsBlueprintMixin, BlueprintOperationIdMixin):
-    """CRUD Blueprint with permission annotations.
-
-    Combines CRUDBlueprint functionality with PermsBlueprintMixin and BlueprintOperationIdMixin
-    to provide automatic CRUD operations with permission checking support and operationIds.
-    """
-
-    def _configure_endpoint(
-        self,
-        view_cls: type[MethodView],
-        method_name: str,
-        docstring: str,
-        method_config: MethodConfig,
-    ) -> None:
-        # Call each mixin's implementation explicitly
-        PermsBlueprintMixin._configure_endpoint(self, view_cls, method_name, docstring, method_config)
-        CRUDBlueprintBase._configure_endpoint(self, view_cls, method_name, docstring, method_config)
-
+from .user_schemas import UserSchema
 
 __all__ = [
     "Api",
@@ -59,6 +37,8 @@ __all__ = [
     "Token",
     "UserSetting",
     "current_user",
+    "UserSchema",
+    "get_current_user",
     "get_current_user_id",
     "HasUserMixin",
     "UserOwnershipMixin",
@@ -66,6 +46,8 @@ __all__ = [
     "TimestampMixin",
     "SoftDeleteMixin",
     "PermsBlueprintMixin",
-    "CRUDBlueprint",
+    "PermsBlueprint",
+    "UserBlueprint",
+    "user_bp",
     "init_jwt",
 ]

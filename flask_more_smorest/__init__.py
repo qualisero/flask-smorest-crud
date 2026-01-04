@@ -40,14 +40,16 @@ Custom User Model Example:
     ...         return self.email_verified and super()._can_write()
 """
 
-from .blueprint_operationid import BlueprintOperationIdMixin
+from .crud.blueprint_operationid import BlueprintOperationIdMixin
 from .crud.crud_blueprint import CRUDMethod
 
 # Import utilities
 from .crud.query_filtering import generate_filter_schema, get_statements_from_filters
 
 # Import core blueprints
-from .perms import Api, BasePermsModel, CRUDBlueprint
+# Import user models and authentication
+from .perms import Api, BasePermsModel, UserBlueprint, user_bp
+from .perms import PermsBlueprint as CRUDBlueprint  # Make the Perms version the default
 from .perms.jwt import init_jwt
 
 # Import user model mixins
@@ -58,8 +60,6 @@ from .perms.model_mixins import (
     UserOwnershipMixin,
 )
 from .perms.perms_blueprint import PermsBlueprintMixin as BlueprintAccessMixin
-
-# Import user models and authentication
 from .perms.user_models import (
     DefaultUserRole,
     Domain,
@@ -95,6 +95,8 @@ __all__ = [
     # Core blueprints
     "CRUDBlueprint",
     "CRUDMethod",
+    "UserBlueprint",
+    "user_bp",
     "BlueprintAccessMixin",
     "BlueprintOperationIdMixin",
     # Database and models

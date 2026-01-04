@@ -89,6 +89,27 @@ logger = logging.getLogger(__name__)
 current_user: "User" = jwt_current_user
 
 
+def get_current_user() -> "User | None":
+    """Get the current authenticated user.
+
+    Returns:
+        Current user instance if authenticated, None otherwise
+
+    Example:
+        >>> user = get_current_user()
+        >>> if user:
+        ...     print(f"Authenticated user: {user.email}")
+    """
+    try:
+        verify_jwt_in_request()
+        return current_user
+    except exceptions.JWTDecodeError:
+        return None
+    except Exception as e:
+        logger.exception("Error getting current user: %s", e)
+        return None
+
+
 def get_current_user_id() -> uuid.UUID | None:
     """Get current user ID if authenticated.
 
@@ -184,12 +205,21 @@ class User(BasePermsModel):
     - `has_domain_access()`: Method to check domain-specific permissions
     - Permission methods: `_can_read()`, `_can_write()`, `_can_create()`
 
+    **Public Registration:**
+
+    Set `PUBLIC_REGISTRATION = True` to allow unauthenticated users to create accounts:
+    ```python
+    class CustomUser(User):
+        PUBLIC_REGISTRATION = True  # Allow public signups
+    ```
+
     **Inheritance Without Abstract Base Class:**
 
     Simply inherit from this concrete User class and add your custom fields and methods.
     """
 
     __tablename__ = "user"
+    PUBLIC_REGISTRATION: bool = False  # Allow subclasses to enable public registration
 
     # Core authentication fields that all User models must have
     email: Mapped[str] = mapped_column(db.String(128), unique=True, nullable=False)
@@ -295,15 +325,30 @@ class User(BasePermsModel):
             for r in self.roles
         )
 
+    def _can_read(self) -> bool:
+        """Users can read their own profile."""
+        try:
+            return self.id == get_current_user_id() or current_user.is_admin
+        except Exception:
+            return False
+
     def _can_write(self) -> bool:
         """Default write permission: users can edit their own profile."""
         try:
-            return self.id == get_current_user_id()
+            if self.id == get_current_user_id():
+                return True
+            if self.is_admin:
+                return current_user.is_superadmin
+            else:
+                return current_user.is_admin
         except Exception:
             return False
 
     def _can_create(self) -> bool:
-        """Default create permission: admins can create users."""
+        """Default create permission: admins can create users, or public registration if enabled."""
+        # Check if public registration is enabled on the class
+        if getattr(self.__class__, "PUBLIC_REGISTRATION", False):
+            return True
         try:
             return current_user.is_admin
         except Exception:
@@ -448,8 +493,8 @@ class UserRole(BasePermsModel):
             }
 
             if self._role in admin_roles:
-                return current_user.has_role(DefaultUserRole.SUPERADMIN)
-            return current_user.has_role(DefaultUserRole.ADMIN)
+                return current_user.is_superadmin
+            return current_user.is_admin
         except Exception:
             return False
 
