@@ -306,15 +306,15 @@ class TestUserBlueprintWithCustomUser:
         """Test that PUBLIC_REGISTRATION=True allows creating users without authentication."""
 
         # Define a custom User class with PUBLIC_REGISTRATION
-        class PublicUser(User):
+        class PublicUserForCreation(User):
             PUBLIC_REGISTRATION = True
 
-        # Recreate tables to include PublicUser
+        # Recreate tables to include PublicUserForCreation
         db.drop_all()
         db.create_all()
 
         # Create blueprint with public registration user
-        bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+        bp = UserBlueprint(model=PublicUserForCreation, schema=PublicUserForCreation.Schema)
         api.register_blueprint(bp)
 
         client = test_app.test_client()
