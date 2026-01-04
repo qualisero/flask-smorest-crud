@@ -71,7 +71,7 @@ import sqlalchemy as sa
 from flask_jwt_extended import current_user as jwt_current_user
 from flask_jwt_extended import exceptions, verify_jwt_in_request
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from ..error.exceptions import UnprocessableEntity
 from ..sqla import db
@@ -219,6 +219,7 @@ class User(BasePermsModel):
     """
 
     __tablename__ = "user"
+    __table_args__ = {"extend_existing": True}  # Allow subclasses to extend the table
     PUBLIC_REGISTRATION: bool = False  # Allow subclasses to enable public registration
 
     # Core authentication fields that all User models must have
@@ -256,6 +257,25 @@ class User(BasePermsModel):
             if not isinstance(password, str):
                 raise TypeError("Password must be a string")
             self.set_password(password)
+
+    @validates("email")
+    def normalize_email(self, key: str, email: str | None) -> str | None:
+        """Normalize email to lowercase for case-insensitive lookups.
+
+        Emails are automatically converted to lowercase when set, ensuring:
+        - Case-insensitive login (user@example.com == USER@EXAMPLE.COM)
+        - Prevention of duplicate registrations with different cases
+        - Efficient database queries using the email index
+        - Consistent email storage throughout the application
+
+        Args:
+            key: Field name (always "email")
+            email: Email address to normalize
+
+        Returns:
+            Lowercase email address, or None if email is None
+        """
+        return email.lower() if email else email
 
     def set_password(self, password: str) -> None:
         """Set password with secure hashing."""
