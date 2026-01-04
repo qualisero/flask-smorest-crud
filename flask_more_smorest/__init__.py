@@ -85,7 +85,7 @@ from .sqla import (
 from .sqla.base_model import BaseSchema
 from .utils import convert_snake_to_camel
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Dave <david@qualisero.com>"
 __email__ = "david@qualisero.com"
 __description__ = "Enhanced Flask-Smorest blueprints with automatic CRUD operations and extensible user management"
