@@ -1,6 +1,20 @@
 """Unit tests for utility functions."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import sqlalchemy as sa
+from flask import Flask
+from marshmallow import fields
+from sqlalchemy.orm import Mapped, mapped_column
+
+from flask_more_smorest import BaseModel, BaseSchema, db
+from flask_more_smorest.perms.base_perms_model import BasePermsModel
 from flask_more_smorest.utils import convert_snake_to_camel
+
+if TYPE_CHECKING:  # pragma: no cover
+    pass
 
 
 class TestConvertSnakeToCamel:
@@ -50,3 +64,73 @@ class TestConvertSnakeToCamel:
         """Test conversion of all caps strings."""
         assert convert_snake_to_camel("USER") == "USER"
         assert convert_snake_to_camel("USER_PROFILE") == "UserProfile"
+
+
+class TestBaseModelSession:
+    """Tests for BaseModel session handling."""
+
+    def test_base_model_allows_inactive_session(self, app: Flask) -> None:
+        """Test that BaseModel can create instances when session is closed."""
+
+        class SimpleModel(BaseModel):
+            name: Mapped[str] = mapped_column(sa.String(50))
+
+        with app.app_context():
+            db.create_all()
+
+            instance = SimpleModel(name="first")
+            instance.save()
+            db.session.commit()
+            db.session.close()
+
+            # Session is closed (inactive). New instances should still be creatable.
+            other = SimpleModel(name="second")
+            assert other.name == "second"
+
+
+class TestSchemaPreload:
+    """Tests for BaseSchema preload functionality."""
+
+    def test_preload_injects_view_args(self) -> None:
+        """Test that preload injects view_args into schema data."""
+
+        class DummySchema(BaseSchema):
+            resource_id = fields.String()
+
+        schema = DummySchema()
+        app = Flask(__name__)
+        app.config["TESTING"] = True
+
+        with app.test_request_context("/resource/123") as ctx:
+            ctx.request.view_args = {"resource_id": "123"}
+            data = schema.pre_load({}, view_args={}, unknown=None)
+            assert data["resource_id"] == "123"
+
+
+class TestCheckCreateCycles:
+    """Tests for permission checking with cyclic relationships."""
+
+    def test_check_create_handles_cycles_without_recursion_error(self, app: Flask) -> None:
+        """check_create should gracefully handle cyclic graphs without recursion errors.
+
+        The exact permission outcome is not important here; we only assert that
+        a self-referential structure does not cause a RecursionError.
+        """
+
+        class Node(BasePermsModel):
+            __allow_unmapped__ = True
+
+            id = db.Column(sa.Integer, primary_key=True)
+            parent_id = db.Column(sa.Integer, sa.ForeignKey("node.id"))
+            parent = db.relationship("Node", remote_side=[id], backref="children")
+
+        with app.app_context():
+            db.create_all()
+
+            root = Node()
+            # Create a self-cycle
+            root.parent = root  # pyright: ignore[reportAttributeAccessIssue]
+
+            # Should not raise RecursionError due to cycle; any permission
+            # exceptions would be raised explicitly instead.
+            root.check_create([root])

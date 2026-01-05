@@ -65,7 +65,7 @@ import enum
 import logging
 import os
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from flask_jwt_extended import current_user as jwt_current_user
@@ -228,23 +228,47 @@ class User(BasePermsModel):
     is_enabled: Mapped[bool] = mapped_column(db.Boolean(), default=True)
 
     def __init_subclass__(cls, **kwargs: object) -> None:
+        """Process User subclasses and inject __table_args__ for single-table inheritance.
+
+        This method sets a marker (_User__is_single_table_inheritance) to communicate
+        with __table_cls__() whether extend_existing=True should be injected during
+        table creation.
+
+        The marker is set BEFORE super().__init_subclass__() so it's available when
+        SQLAlchemy calls __table_cls__() during class initialization. This allows
+        injecting extend_existing at the right moment without SQLAlchemy rejecting it.
+
+        Users do NOT need to manually add __table_args__ in their subclasses.
+        """
         # Check for multi-table inheritance BEFORE SQLAlchemy processes the class
-        # SQLAlchemy's __init_subclass__ manipulates cls.__dict__, so we must check before calling super()
         has_custom_tablename = "__tablename__" in cls.__dict__
         has_custom_table_args = "__table_args__" in cls.__dict__
 
+        # Set marker for __table_cls__() if using single-table inheritance
+        if not has_custom_tablename and not has_custom_table_args:
+            cls._User__is_single_table_inheritance = True
+
         super().__init_subclass__(**kwargs)
 
-        # Don't override explicit __table_args__
-        if has_custom_table_args:
-            return
+        # Also inject post-super() for backwards compatibility and hot reload
+        if not has_custom_table_args and not has_custom_tablename:
+            cls.__table_args__ = {"extend_existing": True}
 
-        # Don't inject for multi-table inheritance
-        if has_custom_tablename:
-            return
+    @classmethod
+    def __table_cls__(cls, *args: object, **kwargs: object) -> Any:
+        """Override table creation to inject extend_existing for single-table inheritance.
 
-        # Inject for single-table inheritance (shares User's table)
-        cls.__table_args__ = {"extend_existing": True}
+        This is called by SQLAlchemy during __init_subclass__() to create the Table object.
+        We inject extend_existing=True here if the marker was set, which happens at the
+        perfect moment to avoid SQLAlchemy's "Can't place __table_args__" error.
+        """
+        # Check if marker was set by __init_subclass__
+        if getattr(cls, "_User__is_single_table_inheritance", False):
+            # Inject extend_existing into kwargs
+            if "extend_existing" not in kwargs:
+                kwargs["extend_existing"] = True
+
+        return super().__table_cls__(*args, **kwargs)
 
     # Core relationships that all User models inherit
     # Using enable_typechecks=False to allow UserRole subclasses
