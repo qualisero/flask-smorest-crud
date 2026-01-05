@@ -11,6 +11,8 @@ The User model in Flask-More-Smorest is designed for easy extension while preser
 - Use provided mixins for common functionality
 - Maintain all built-in features (roles, settings, tokens, permissions)
 
+Just inherit from User and add your fields - the framework handles the rest.
+
 ## Basic Extension Pattern
 
 ### Simple Field Addition
@@ -337,6 +339,21 @@ class UserProfile(BaseModel):
     __tablename__ = 'user_profiles'
     user_id: Mapped[UUID] = mapped_column(sa.Uuid, db.ForeignKey('users.id'))
     user: Mapped[User] = relationship('User')
+    extra_field: Mapped[str] = mapped_column(db.String(100))
+```
+
+## Important Notes
+
+### Table Inheritance
+
+By default, User subclasses use **single-table inheritance** (all fields stored in the `user` table). The framework handles this automatically - just inherit and add your fields.
+
+For separate tables, specify `__tablename__`:
+
+```python
+class ExtendedUser(User):
+    __tablename__ = 'extended_users'
+    id: Mapped[UUID] = mapped_column(sa.Uuid, db.ForeignKey('users.id'), primary_key=True)
     extra_field: Mapped[str] = mapped_column(db.String(100))
 ```
 

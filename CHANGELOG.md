@@ -7,126 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-01-05
+
+### Changed
+- Simplified User extension documentation - removed technical implementation details
+- Test suite refactored: extracted schema tests to dedicated file, consolidated small test files
+- Condensed CHANGELOG format for better readability
+
 ## [0.5.0] - 2026-01-05
 
 ### Added
-- **Case-insensitive email handling**: Emails are now automatically normalized to lowercase
-  - `@validates("email")` decorator on User model ensures consistent storage
-  - `@pre_load` hook in UserLoginSchema for case-insensitive login
-  - Prevents duplicate registrations with different case variations
-  - Users can login with any case: `user@example.com`, `USER@EXAMPLE.COM`, `User@Example.Com`
-  - Efficient database queries (uses indexes properly)
-- **extend_existing support for User model**: Added `__table_args__ = {"extend_existing": True}`
-  - Fixes SQLAlchemy table redefinition errors in function-scoped test fixtures
-  - Enables safe module reloading during development
-  - Simple inheritance works automatically: `class EmployeeUser(User): ...`
-  - Mixin inheritance works automatically: `class CustomUser(User, ProfileMixin): ...`
-  - No explicit `__table_args__` needed in subclasses for single-table inheritance
-
-### Changed
-- Email storage is now always lowercase in the database
-  - Existing installations can optionally run: `UPDATE user SET email = LOWER(email);`
-  - Not required but recommended for data consistency
+- Case-insensitive email handling (automatic lowercase normalization)
+- Automatic table extension for User subclasses (no explicit `__table_args__` needed)
 
 ### Fixed
-- User model inheritance errors with function-scoped test fixtures
-- Case-sensitive email lookup issues in authentication
+- User model inheritance with function-scoped test fixtures
+- SQLAlchemy duplicate class warnings in tests
+
+## [0.4.0] - 2026-01-04
+
+### Added
+- Automatic public POST endpoint when `PUBLIC_REGISTRATION = True`
+
+## [0.3.2] - 2026-01-03
+
+### Added
+- Comprehensive User inheritance and migration table tests
+
+## [0.3.1] - 2026-01-03
+
+### Changed
+- Enhanced UserBlueprint documentation
+
+## [0.3.0] - 2026-01-02
+
+### Added
+- **UserBlueprint**: Instant user authentication with login and profile endpoints
+- PUBLIC_REGISTRATION support for unauthenticated user creation
 
 ## [0.2.3] - 2026-01-02
 
 ### Added
-- **Automatic ReadTheDocs Updates**: GitHub Actions now automatically trigger documentation builds on each release
-- `HasUserMixin.__user_backref_name__` configuration option for customizing User relationship backrefs
-  - `None` (default): Auto-generate from tablename (e.g., "articles")
-  - Custom string: Use specified name (e.g., "my_posts")
-  - Empty string: Skip backref creation entirely
-- Comprehensive ReadTheDocs setup guide in `docs/READTHEDOCS_SETUP.md`
-- `trigger-docs` job in CI/CD workflow to call ReadTheDocs API
-- PDF and EPUB documentation formats in ReadTheDocs configuration
+- Automatic ReadTheDocs updates via GitHub Actions
+- `HasUserMixin.__user_backref_name__` for customizing User relationship backrefs
+- PDF and EPUB documentation formats
 
 ### Changed
-- **User Permission Mixins Unified**: Merged `UserCanReadWriteMixin` and `UserOwnedResourceMixin` into single `UserOwnershipMixin`
-  - Use `__delegate_to_user__ = False` for simple ownership (default)
-  - Use `__delegate_to_user__ = True` to delegate to `user._can_write()`
-  - Backwards compatible migration path documented
-- Removed unnecessary `__tablename__` declarations across codebase
-  - All BaseModel subclasses now use auto-generated table names
-  - Updated foreign key references to match auto-generated names
-  - Cleaner, more consistent code style
+- **UserOwnershipMixin**: Unified permission mixins with `__delegate_to_user__` flag
+- Removed unnecessary `__tablename__` declarations (auto-generated names used)
 
 ### Fixed
-- SQLAlchemy warnings about duplicate `TestModel` class names in tests (renamed to unique names)
-- Test models now follow same conventions as production code
-- Domain model foreign key updated from "domains.id" to "domain.id"
-
-### Documentation
-- Enhanced `HasUserMixin` docstring with backref configuration examples
-- Updated all model examples to show auto-generated table names
-- Added USER_OWNERSHIP_MIXIN.md guide for migration
-- Updated README with prominent ReadTheDocs link
-- 5 new tests for backref name configuration
+- Domain model foreign key reference
 
 ## [0.2.2] - 2026-01-01
 
-### Changed
-- **BREAKING CLARIFICATION**: When using dict mode for `methods` parameter in `CRUDBlueprint`, all CRUD methods are now explicitly enabled by default. Previously this behavior was undocumented.
-- Simplified README documentation for `methods` parameter, removed `skip_methods` details from main docs
-- Enhanced docstrings in `CRUDBlueprint` with comprehensive examples
-- Improved error messages with type information in method normalization
-
 ### Added
-- Warning when both dict `False` and `skip_methods` are used redundantly for the same method
-- Comprehensive test suite for `methods` and `skip_methods` logic (11 new tests)
-- Documentation file `docs/crud_methods_cleanup.md` explaining method resolution
-- GitHub workflows for automated PyPI publishing with Trusted Publishing support
+- GitHub workflows for automated PyPI publishing
+- Comprehensive CRUD methods logic test suite
+
+### Changed
+- Dict mode for `methods` parameter explicitly enables all CRUD methods by default
+- Simplified README documentation
 
 ### Fixed
-- Empty methods list no longer attempts to register empty MethodView routes
-- GenericCRUD route only registered when it has at least one method
+- Empty methods list no longer registers empty routes
 
 ## [0.2.1] - 2024-12-21
 
 ### Changed
 - Renamed package from `flask-smorest-crud` to `flask-more-smorest`
-- Updated all import statements and references
-- Updated PyPI package name and repository URLs
+- Moved to proper package structure under `flask_more_smorest/`
 
 ### Added
 - Initial PyPI package structure
-- Comprehensive documentation and examples
 - GitHub Actions CI/CD pipeline
-- Pre-commit hooks configuration
-- Type hints for all modules
-- Unit tests with pytest framework
-
-### Changed
-- Moved source code to proper package structure under `flask_more_smorest/`
-- Updated pyproject.toml with complete package metadata
-- Enhanced docstrings following Google style guide
-
-### Fixed
-- Import paths updated for new package structure
+- Pre-commit hooks
+- Type hints throughout
 
 ## [0.1.0] - 2024-11-22
 
 ### Added
 - Initial public release
-- `CRUDBlueprint` class for automatic CRUD operations
-- `EnhancedBlueprint` with public/admin endpoint decorators
-- Query filtering utilities with range and comparison operators
-- Automatic operationId generation for OpenAPI documentation
-- Support for SQLAlchemy 2.0+ and Flask-Smorest integration
-
-### Features
-- Automatic RESTful API generation from SQLAlchemy models
-- Advanced filtering for datetime, numeric, and string fields
-- Type hints and modern Python 3.11+ support
-- Comprehensive documentation and examples
+- `CRUDBlueprint` for automatic CRUD operations
+- `EnhancedBlueprint` with public/admin decorators
+- Query filtering with range and comparison operators
+- Automatic operationId generation
+- SQLAlchemy 2.0+ support
 
 ## [0.0.1] - 2024-11-22
 
 ### Added
 - Initial development version
-- Core CRUD functionality implementation
-- Basic blueprint extensions
-- Query filtering prototype
