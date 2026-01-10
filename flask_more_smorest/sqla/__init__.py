@@ -5,7 +5,7 @@ including the database instance, base model, and migration utilities.
 """
 
 from .base_model import BaseModel
-from .database import db, init_db
+from .database import db, get_request_query_stats, init_db
 from .migrations import (
     create_migration,
     downgrade_database,
@@ -17,6 +17,7 @@ __all__ = [
     "BaseModel",
     "db",
     "init_db",
+    "get_request_query_stats",
     "init_migrations",
     "create_migration",
     "upgrade_database",
