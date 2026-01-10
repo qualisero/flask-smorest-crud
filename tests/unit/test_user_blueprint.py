@@ -155,8 +155,9 @@ class TestUserBlueprintClass:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert "error" in data
-        assert data["error"]["error_code"] == "unauthorized_error"
+        # RFC 7807 format
+        assert data["status"] == 401
+        assert "unauthorized" in data["type"].lower()
 
     def test_user_blueprint_login_fails_for_disabled_user(
         self, test_app: Flask, api: Api, db_session: "scoped_session"
@@ -180,8 +181,9 @@ class TestUserBlueprintClass:
 
         assert response.status_code == 401
         data = response.get_json()
-        assert "error" in data
-        assert "disabled" in data["error"]["debug"]["message"].lower()
+        # RFC 7807 format
+        assert data["status"] == 401
+        assert "disabled" in data["detail"].lower()
 
     def test_user_blueprint_me_endpoint_requires_auth(
         self, test_app: Flask, api: Api, db_session: "scoped_session"

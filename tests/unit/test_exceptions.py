@@ -1,4 +1,4 @@
-"""Regression tests for ApiException responses."""
+"""Tests for ApiException responses and RFC 7807 compliance."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from flask_more_smorest.error.exceptions import (
 
 
 class DummyException(ApiException):
+    TITLE = "Dummy Error"
     HTTP_STATUS_CODE = HTTPStatus.BAD_REQUEST
 
 
@@ -69,12 +70,19 @@ def test_api_exception_includes_debug_context_in_debug_mode() -> None:
         except DummyException as exc:
             response = exc.make_error_response()
 
-    payload = response.get_json()["error"]
-    assert payload["status_code"] == HTTPStatus.BAD_REQUEST
-    assert payload["details"]["extra"] == "info"
+    payload = response.get_json()
+
+    # RFC 7807 format
+    assert payload["status"] == HTTPStatus.BAD_REQUEST
+    assert payload["title"] == "Dummy Error"
+    assert payload["detail"] == "problem"
+    assert "fields" in payload
+    assert payload["fields"]["extra"] == "info"
+
+    # Debug info present in debug mode
     assert "debug" in payload
-    assert payload["debug"]["debug_context"]["extra"] == "info"
-    assert "traceback" in payload["debug"]["debug_context"]
+    assert payload["debug"]["context"]["extra"] == "info"
+    assert "traceback" in payload["debug"]
 
 
 def test_api_exception_excludes_debug_in_production() -> None:
@@ -89,9 +97,9 @@ def test_api_exception_excludes_debug_in_production() -> None:
         except DummyException as exc:
             response = exc.make_error_response()
 
-    payload = response.get_json()["error"]
-    assert payload["status_code"] == HTTPStatus.BAD_REQUEST
-    assert payload["details"]["extra"] == "info"
+    payload = response.get_json()
+    assert payload["status"] == HTTPStatus.BAD_REQUEST
+    assert payload["fields"]["extra"] == "info"
     # Debug should NOT be included in production
     assert "debug" not in payload
 
@@ -107,11 +115,11 @@ def test_api_exception_trims_traceback_when_disabled() -> None:
         except NoTracebackException as exc:
             response = exc.make_error_response()
 
-    payload = response.get_json()["error"]
+    payload = response.get_json()
     # Debug is included because we're in debug mode
     assert "debug" in payload
     # But traceback is explicitly disabled
-    assert "traceback" not in payload["debug"]["debug_context"]
+    assert "traceback" not in payload["debug"]
 
 
 def test_api_exception_explicit_traceback_in_production() -> None:
@@ -126,7 +134,7 @@ def test_api_exception_explicit_traceback_in_production() -> None:
         except ExplicitTracebackException as exc:
             response = exc.make_error_response()
 
-    payload = response.get_json()["error"]
+    payload = response.get_json()
     # Even with explicit traceback, debug block is not included in production
     assert "debug" not in payload
 
@@ -139,11 +147,12 @@ def test_subclass_without_extra_kwargs() -> None:
     with app.app_context():
         response = UnauthorizedError("no token").make_error_response()
 
-    payload = response.get_json()["error"]
-    assert payload["debug"]["message"] == "no token"
+    payload = response.get_json()
+    assert payload["detail"] == "no token"
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     # UnauthorizedError has INCLUDE_TRACEBACK=False explicitly
-    assert "traceback" not in payload["debug"]["debug_context"]
+    if "debug" in payload:
+        assert "traceback" not in payload["debug"]
 
 
 def test_unauthorized_error_never_includes_traceback() -> None:
@@ -157,10 +166,11 @@ def test_unauthorized_error_never_includes_traceback() -> None:
         except UnauthorizedError as exc:
             response = exc.make_error_response()
 
-    payload = response.get_json()["error"]
+    payload = response.get_json()
     # UnauthorizedError explicitly sets INCLUDE_TRACEBACK=False
     # so even in debug mode, no traceback
-    assert "traceback" not in payload["debug"]["debug_context"]
+    if "debug" in payload:
+        assert "traceback" not in payload["debug"]
 
 
 def test_forbidden_error_uses_environment_detection() -> None:
@@ -171,3 +181,14 @@ def test_forbidden_error_uses_environment_detection() -> None:
 
     # ForbiddenError has INCLUDE_TRACEBACK=None (uses environment detection)
     assert ForbiddenError.INCLUDE_TRACEBACK is None
+
+
+def test_content_type_is_problem_json() -> None:
+    """Test that response has RFC 7807 content type."""
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+
+    with app.app_context():
+        response = DummyException("test").make_error_response()
+
+    assert response.content_type == "application/problem+json"
