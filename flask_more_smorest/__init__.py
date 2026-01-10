@@ -53,6 +53,10 @@ User Authentication Example:
     >>> # Provides: POST /api/users/login/, GET /api/users/me/, and full CRUD
 """
 
+import logging
+import uuid
+from typing import TYPE_CHECKING
+
 from .crud.blueprint_operationid import BlueprintOperationIdMixin
 from .crud.crud_blueprint import CRUDMethod
 
@@ -88,7 +92,27 @@ from .sqla import (
 from .sqla.base_model import BaseSchema
 from .utils import convert_snake_to_camel
 
-__version__ = "0.5.0"
+# Type stubs for lazy-loaded objects - provides proper typing without premature import
+if TYPE_CHECKING:
+    from flask_smorest import Blueprint as _Blueprint
+
+    # User models are typed via perms module delegation
+    from .perms import (
+        DefaultUserRole,
+        Domain,
+        Token,
+        User,
+        UserRole,
+        UserSetting,
+        get_current_user,
+        get_current_user_id,
+        user_bp,
+    )
+
+logger = logging.getLogger(__name__)
+
+
+__version__ = "0.5.1"
 __author__ = "Dave <david@qualisero.com>"
 __email__ = "david@qualisero.com"
 __description__ = "Enhanced Flask-Smorest blueprints with automatic CRUD operations and extensible user management"
@@ -137,14 +161,9 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
-    """Lazy import user models to avoid premature table creation."""
-    if name == "user_bp":
-        from .perms import user_bp
+    """Proxy attribute lookups to the perms package for lazy loading."""
 
-        globals()["user_bp"] = user_bp
-        return user_bp
-
-    if name in (
+    delegated_names = {
         "User",
         "UserRole",
         "UserSetting",
@@ -153,24 +172,21 @@ def __getattr__(name: str) -> object:
         "DefaultUserRole",
         "get_current_user",
         "get_current_user_id",
-    ):
-        from .perms.user_models import (
-            DefaultUserRole,
-            Domain,
-            Token,
-            User,
-            UserRole,
-            UserSetting,
-            current_user,
-            get_current_user_id,
-        )
+        "user_bp",
+    }
 
-        if name == "get_current_user":
-            globals()[name] = current_user
-            return current_user
+    if name in delegated_names:
+        try:
+            from . import perms as perms_module
 
-        # Cache and return the requested attribute
-        globals()[name] = locals()[name]
-        return locals()[name]
+            value = getattr(perms_module, name)
+            globals()[name] = value
+            return value
+        except ImportError as exc:  # pragma: no cover - defensive
+            logger.error("Failed to import perms module for %s: %s", name, exc)
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+        except AttributeError as exc:
+            logger.error("Attribute %s not found in perms module: %s", name, exc)
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -12,9 +12,12 @@ from collections.abc import Mapping
 
 import marshmallow as ma
 from marshmallow import validate
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, inspect
 
 from flask_more_smorest.sqla.base_model import BaseModel
+
+# Filter suffixes used for range and comparison queries
+_FILTER_SUFFIXES = ("__from", "__to", "__min", "__max", "__in")
 
 _NUMERIC_FIELDS = (ma.fields.Integer, ma.fields.Float, ma.fields.Decimal)
 _TEMPORAL_FIELDS = (ma.fields.DateTime, ma.fields.Date)
@@ -157,6 +160,46 @@ def generate_filter_schema(base_schema: type[ma.Schema] | ma.Schema) -> type[ma.
     return FilterSchema
 
 
+def _extract_base_field_name(field_name: str) -> str:
+    """Extract the base field name by removing filter suffixes.
+
+    Args:
+        field_name: Field name possibly containing a filter suffix
+
+    Returns:
+        Base field name with suffix removed
+    """
+    for suffix in _FILTER_SUFFIXES:
+        if field_name.endswith(suffix):
+            return field_name[: -len(suffix)]
+    return field_name
+
+
+def _validate_filter_field(field_name: str, model: type[BaseModel], valid_columns: set[str]) -> str:
+    """Validate that a filter field exists on the model.
+
+    Args:
+        field_name: The filter field name (may include suffix)
+        model: The SQLAlchemy model class
+        valid_columns: Set of valid column names on the model
+
+    Returns:
+        The base field name (without suffix)
+
+    Raises:
+        ValueError: If the base field does not exist on the model
+    """
+    base_field = _extract_base_field_name(field_name)
+
+    if base_field not in valid_columns:
+        raise ValueError(
+            f"Invalid filter field '{base_field}' for model {model.__name__}. "
+            f"Valid fields are: {', '.join(sorted(valid_columns))}"
+        )
+
+    return base_field
+
+
 def get_statements_from_filters(kwargs: Mapping, model: type[BaseModel]) -> set[ColumnElement[bool]]:
     """Convert query kwargs into SQLAlchemy filters based on the schema.
 
@@ -166,12 +209,18 @@ def get_statements_from_filters(kwargs: Mapping, model: type[BaseModel]) -> set[
     - Numeric ranges: field__min (>=) and field__max (<=)
     - Exact equality: field = value
 
+    All filter field names are validated against the model's columns to
+    prevent access to private attributes or non-existent fields.
+
     Args:
         kwargs: Dictionary of filter parameters from the query string
         model: SQLAlchemy model class to filter on
 
     Returns:
         Set of SQLAlchemy filter conditions (BinaryExpression objects)
+
+    Raises:
+        ValueError: If a filter field does not exist on the model
 
     Example:
         >>> filters = {'age__min': 18, 'age__max': 65, 'is_active': True}
@@ -180,25 +229,29 @@ def get_statements_from_filters(kwargs: Mapping, model: type[BaseModel]) -> set[
     """
     filters: set[ColumnElement[bool]] = set()
 
+    # Get valid column names from the model for validation
+    valid_columns = {col.name for col in inspect(model).columns}
+
     for field_name, value in kwargs.items():
         if value is None:
             continue
         if field_name in ("page", "page_size"):
             # Skip pagination parameters as they are handled separately
             continue
+
+        # Validate the field exists on the model
+        base_field_name = _validate_filter_field(field_name, model, valid_columns)
+        model_field = getattr(model, base_field_name)
+
         if field_name.endswith("__from"):
-            base_field = getattr(model, field_name[:-6])
-            filters |= {base_field >= value}
+            filters |= {model_field >= value}
         elif field_name.endswith("__to"):
-            base_field = getattr(model, field_name[:-4])
-            filters |= {base_field <= value}
+            filters |= {model_field <= value}
         elif field_name.endswith("__min"):
-            base_field = getattr(model, field_name[:-5])
-            filters |= {base_field >= value}
+            filters |= {model_field >= value}
         elif field_name.endswith("__max"):
-            base_field = getattr(model, field_name[:-5])
-            filters |= {base_field <= value}
+            filters |= {model_field <= value}
         else:
-            filters |= {getattr(model, field_name) == value}
+            filters |= {model_field == value}
 
     return filters

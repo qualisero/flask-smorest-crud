@@ -119,7 +119,7 @@ class Api(ApiOrig):
                     if public_endpoint and not admin_endpoint:
                         return
                 try:
-                    # NOTE: we do not completely skip auth if DISABLE_AUTH=1, in case the endpoint relies on current_user
+                    # NOTE: we do not completely skip auth if DISABLE_AUTH=1, in case the endpoint relies on authenticated user context
                     verify_jwt_in_request()
                 except (
                     jwt_exceptions.JWTDecodeError,

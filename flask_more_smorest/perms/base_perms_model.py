@@ -11,7 +11,7 @@ from typing import Any, Self, cast
 
 import sqlalchemy as sa
 from flask import has_request_context
-from flask_jwt_extended import exceptions, verify_jwt_in_request
+from flask_jwt_extended import exceptions
 from sqlalchemy.orm.state import InstanceState
 from werkzeug.exceptions import Unauthorized
 
@@ -240,18 +240,10 @@ class BasePermsModel(SQLABaseModel):
         Returns:
             True if current user is admin, False otherwise
         """
-        from .user_models import current_user
+        from .user_models import get_current_user
 
         try:
-            verify_jwt_in_request()
-            if current_user.is_admin:
-                return True
-        except (exceptions.JWTExtendedException, Unauthorized):
-            logger.debug(
-                "JWT verification failed or unauthorized when checking admin status",
-                exc_info=True,
-            )
-            return False
+            user = get_current_user()
         except RuntimeError as exc:
             logger.debug(
                 "Runtime error during admin check (likely outside request context): %s",
@@ -262,7 +254,7 @@ class BasePermsModel(SQLABaseModel):
             logger.warning("Unexpected error during admin check: %s", exc, exc_info=True)
             return False
 
-        return False
+        return bool(user and user.is_admin)
 
     def check_create(self, val: list | set | tuple | object, _visited: set[int] | None = None) -> None:
         """Recursively check that all BaseModel instances can be created.

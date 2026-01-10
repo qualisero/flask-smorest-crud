@@ -102,12 +102,13 @@ def get_current_user() -> "User | None":
     """
     try:
         verify_jwt_in_request()
-        return current_user
-    except exceptions.JWTDecodeError:
+    except exceptions.JWTExtendedException:
         return None
     except Exception as e:
-        logger.exception("Error getting current user: %s", e)
+        logger.exception("Error verifying JWT for current user: %s", e)
         return None
+
+    return current_user
 
 
 def get_current_user_id() -> uuid.UUID | None:
@@ -121,14 +122,8 @@ def get_current_user_id() -> uuid.UUID | None:
         >>> if user_id:
         ...     print(f"User {user_id} is authenticated")
     """
-    try:
-        verify_jwt_in_request()
-        return current_user.id
-    except exceptions.JWTDecodeError:
-        return None
-    except Exception as e:
-        logger.exception("Error getting current user ID: %s", e)
-        return None
+    user = get_current_user()
+    return user.id if user else None
 
 
 # Default role enum - can be overridden via UserRole subclasses
@@ -390,20 +385,26 @@ class User(BasePermsModel):
 
     def _can_read(self) -> bool:
         """Users can read their own profile."""
+        user = get_current_user()
+        if not user:
+            return False
         try:
-            return self.id == get_current_user_id() or current_user.is_admin
+            return self.id == user.id or user.is_admin
         except Exception:
             return False
 
     def _can_write(self) -> bool:
         """Default write permission: users can edit their own profile."""
+        user = get_current_user()
+        if not user:
+            return False
         try:
-            if self.id == get_current_user_id():
+            if self.id == user.id:
                 return True
             if self.is_admin:
-                return current_user.is_superadmin
+                return user.is_superadmin
             else:
-                return current_user.is_admin
+                return user.is_admin
         except Exception:
             return False
 
@@ -412,10 +413,10 @@ class User(BasePermsModel):
         # Check if public registration is enabled on the class
         if getattr(self.__class__, "PUBLIC_REGISTRATION", False):
             return True
-        try:
-            return current_user.is_admin
-        except Exception:
-            return True  # Allow during testing/setup
+        user = get_current_user()
+        if user is None:
+            return True
+        return user.is_admin
 
     # Concrete methods that use relationships - available to all User models
     @property
@@ -555,9 +556,12 @@ class UserRole(BasePermsModel):
                 DefaultUserRole.ADMIN.value,
             }
 
+            user = get_current_user()
+            if not user:
+                return False
             if self._role in admin_roles:
-                return current_user.is_superadmin
-            return current_user.is_admin
+                return user.is_superadmin
+            return user.is_admin
         except Exception:
             return False
 
