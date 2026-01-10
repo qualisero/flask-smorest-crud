@@ -187,7 +187,7 @@ class FullUser(User, ProfileMixin, TimestampMixin, SoftDeleteMixin):
 ### Multi-Tenant SaaS Application
 
 ```python
-from flask_more_smorest.perms import current_user
+from flask_more_smorest.perms import get_current_user
 
 class TenantUser(User, ProfileMixin):
     """User in a multi-tenant SaaS application."""
@@ -207,9 +207,9 @@ class TenantUser(User, ProfileMixin):
     def _can_read(self) -> bool:
         """Users can only read within their tenant."""
         try:
-            current = current_user
-            return current.tenant_id == self.tenant_id or current.is_admin
-        except:
+            current = get_current_user()
+            return bool(current and (current.tenant_id == self.tenant_id or current.is_admin))
+        except Exception:
             return False
 ```
 
@@ -258,7 +258,7 @@ class CustomerUser(User, ProfileMixin, TimestampMixin):
 ### Enterprise Application
 
 ```python
-from flask_more_smorest.perms import current_user
+from flask_more_smorest.perms import get_current_user
 
 class EmployeeUser(User, ProfileMixin, TimestampMixin):
     """Employee user for enterprise application."""
@@ -290,13 +290,15 @@ class EmployeeUser(User, ProfileMixin, TimestampMixin):
     def _can_read(self) -> bool:
         """Employees can read their own data and their direct reports'."""
         try:
-            current = current_user
+            current = get_current_user()
+            if not current:
+                return False
             if current.id == self.id:
                 return True
             if current.is_admin:
                 return True
             return self in current.direct_reports
-        except:
+        except Exception:
             return False
     
     def transfer_to_manager(self, new_manager: "EmployeeUser") -> None:
