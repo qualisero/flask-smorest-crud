@@ -76,6 +76,7 @@ Documentation Contents
    :caption: User Guide:
 
    getting-started
+   configuration
    permissions
    crud
    user-models

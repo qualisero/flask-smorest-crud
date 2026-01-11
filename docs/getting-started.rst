@@ -68,6 +68,7 @@ This automatically creates the following endpoints:
 - ``GET /api/critters/<id>`` - Get a specific critter
 - ``PATCH /api/critters/<id>`` - Update a critter
 - ``DELETE /api/critters/<id>`` - Delete a critter
+- ``GET /health`` - Health check endpoint (automatically added)
 
 Creating Models
 ---------------
@@ -171,9 +172,57 @@ CRUD endpoints automatically support filtering and pagination:
    # String matching
    GET /api/critters/?name__like=%fluffy%
 
+Error Handling
+--------------
+
+All errors follow the `RFC 7807 Problem Details <https://datatracker.ietf.org/doc/html/rfc7807>`_ standard:
+
+.. code-block:: json
+
+   {
+     "type": "/errors/not_found_error",
+     "title": "Not Found",
+     "status": 404,
+     "detail": "Critter with id abc123 doesn't exist",
+     "instance": "/api/critters/abc123"
+   }
+
+In debug/testing mode, additional debug information is included. See :doc:`configuration` for details.
+
+Health Checks
+-------------
+
+A built-in health check endpoint is available at ``/health`` for load balancers and monitoring:
+
+.. code-block:: json
+
+   {
+     "status": "healthy",
+     "timestamp": "2026-01-11T08:30:00+00:00",
+     "version": "0.6.0",
+     "database": "connected"
+   }
+
+Configure the path or disable it via ``HEALTH_ENDPOINT_PATH`` and ``HEALTH_ENDPOINT_ENABLED``.
+
+Performance Monitoring
+----------------------
+
+Enable SQLAlchemy performance monitoring to identify slow queries:
+
+.. code-block:: python
+
+   app.config.update(
+       SQLALCHEMY_PERFORMANCE_MONITORING=True,
+       SQLALCHEMY_SLOW_QUERY_THRESHOLD=0.5,  # Log queries over 500ms
+   )
+
+This logs slow queries and provides per-request statistics. See :doc:`configuration` for details.
+
 Next Steps
 ----------
 
+- Review :doc:`configuration` for all available options
 - Learn about :doc:`permissions` for access control
 - Explore :doc:`crud` for advanced CRUD configuration
 - See :doc:`user-models` for authentication and authorization

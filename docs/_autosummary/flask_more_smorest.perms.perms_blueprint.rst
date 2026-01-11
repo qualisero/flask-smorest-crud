@@ -8,5 +8,6 @@ flask\_more\_smorest.perms.perms\_blueprint
 
    .. autosummary::
    
+      PermsBlueprint
       PermsBlueprintMixin
    

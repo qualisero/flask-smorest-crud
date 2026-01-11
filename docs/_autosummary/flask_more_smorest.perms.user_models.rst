@@ -8,6 +8,7 @@ flask\_more\_smorest.perms.user\_models
 
    .. autosummary::
    
+      get_current_user
       get_current_user_id
    
    .. rubric:: Classes

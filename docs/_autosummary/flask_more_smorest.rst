@@ -10,10 +10,8 @@
    :toctree:
    :recursive:
 
-   blueprint_operationid
    crud
    error
-   pagination
    perms
    sqla
    utils
