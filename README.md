@@ -1,9 +1,11 @@
 # Flask-More-Smorest
 
-[![PyPI version](https://badge.fury.io/py/flask-more-smorest.svg?t=2026-01-04-19-51)](https://badge.fury.io/py/flask-more-smorest)
+[![PyPI version](https://img.shields.io/pypi/v/flask-more-smorest.svg)](https://pypi.org/project/flask-more-smorest/)
 [![Python Support](https://img.shields.io/pypi/pyversions/flask-more-smorest.svg)](https://pypi.org/project/flask-more-smorest/)
 [![Documentation Status](https://readthedocs.org/projects/flask-more-smorest/badge/?version=latest)](https://flask-more-smorest.readthedocs.io/en/latest/)
+[![Documentation Status](https://readthedocs.org/projects/flask-more-smorest/badge/?version=stable)](https://flask-more-smorest.readthedocs.io/en/stable/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://img.shields.io/pypi/dm/flask-more-smorest.svg)](https://pypi.org/project/flask-more-smorest/)
 
 Flask-More-Smorest extends **Flask-Smorest** with a number of enhancements and goodies, with the sole goal of drastically reducing boilerplate and complexity when creating a new REST API with Flask and Flask-Smorest.
 

@@ -3,6 +3,30 @@
 Flask-More-Smorest Documentation
 =================================
 
+.. image:: https://img.shields.io/pypi/v/flask-more-smorest.svg
+   :target: https://pypi.org/project/flask-more-smorest/
+   :alt: PyPI version
+
+.. image:: https://img.shields.io/pypi/pyversions/flask-more-smorest.svg
+   :target: https://pypi.org/project/flask-more-smorest/
+   :alt: Python Support
+
+.. image:: https://readthedocs.org/projects/flask-more-smorest/badge/?version=latest
+   :target: https://flask-more-smorest.readthedocs.io/en/latest/
+   :alt: Documentation Status (Latest)
+
+.. image:: https://readthedocs.org/projects/flask-more-smorest/badge/?version=stable
+   :target: https://flask-more-smorest.readthedocs.io/en/stable/
+   :alt: Documentation Status (Stable)
+
+.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
+   :target: https://opensource.org/licenses/MIT
+   :alt: License: MIT
+
+.. image:: https://img.shields.io/pypi/dm/flask-more-smorest.svg
+   :target: https://pypi.org/project/flask-more-smorest/
+   :alt: Downloads
+
 Flask-More-Smorest extends **Flask-Smorest** with batteries-included CRUD blueprints, 
 SQLAlchemy helpers, and an opinionated user/permission system.
 
