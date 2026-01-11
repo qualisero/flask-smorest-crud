@@ -155,8 +155,6 @@ def test_slow_query_threshold_configurable() -> None:
     with app.app_context():
         db.create_all()
 
-        import logging
-
         import sqlalchemy as sa
 
         # With a 5 second threshold, normal queries won't be logged as slow
