@@ -4,6 +4,8 @@ This module provides the permissions system including the Api with auth,
 BasePermsModel with permission checks, user models, and PermsBlueprintMixin.
 """
 
+from typing import TYPE_CHECKING
+
 from .api import Api
 from .base_perms_model import BasePermsModel
 from .jwt import init_jwt
@@ -17,17 +19,36 @@ from .model_mixins import (
 from .perms_blueprint import PermsBlueprint, PermsBlueprintMixin
 from .user_blueprints import UserBlueprint
 
+# Type stubs for lazy-loaded objects
+if TYPE_CHECKING:
+    from flask_smorest import Blueprint as _Blueprint
+
+    from .user_models import (
+        DefaultUserRole,
+        Domain,
+        Token,
+        User,
+        UserRole,
+        UserSetting,
+        get_current_user,
+        get_current_user_id,
+    )
+    from .user_schemas import UserSchema
+
+    user_bp: _Blueprint
+
 # Lazy imports for models and schemas to avoid premature table creation
 # These are imported on first access via __getattr__
 __all__ = [
     "Api",
     "BasePermsModel",
+    "user_bp",
     "User",
     "UserRole",
     "Domain",
     "Token",
     "UserSetting",
-    "current_user",
+    "DefaultUserRole",
     "UserSchema",
     "get_current_user",
     "get_current_user_id",
@@ -39,7 +60,6 @@ __all__ = [
     "PermsBlueprintMixin",
     "PermsBlueprint",
     "UserBlueprint",
-    "user_bp",
     "init_jwt",
 ]
 
@@ -63,17 +83,17 @@ def __getattr__(name: str) -> object:
         "Domain",
         "Token",
         "UserSetting",
-        "current_user",
+        "DefaultUserRole",
         "get_current_user",
         "get_current_user_id",
     ):
         from .user_models import (
+            DefaultUserRole,
             Domain,
             Token,
             User,
             UserRole,
             UserSetting,
-            current_user,
             get_current_user,
             get_current_user_id,
         )
