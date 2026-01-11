@@ -35,15 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_debug_mode() -> bool:
-    """Check if Flask is running in debug or testing mode.
-
-    Uses Flask's app.debug and app.testing flags to determine if debug
-    information should be included in error responses. In production,
-    these should be False to avoid exposing internal implementation details.
-
-    Returns:
-        True if debug or testing mode is enabled, False otherwise
-    """
+    """Check if Flask is running in debug or testing mode."""
     if not has_app_context():
         return False
     return current_app.debug or current_app.testing
@@ -52,8 +44,8 @@ def _is_debug_mode() -> bool:
 def _get_error_type_uri(error_code: str) -> str:
     """Generate the RFC 7807 'type' URI for an error.
 
-    In production, this could be configured to point to actual documentation.
-    For now, we use a relative URI that could be served by the API.
+    Can be configured to point to actual documentation.
+    Or use relative URI that could be used as error code.
 
     Args:
         error_code: The snake_case error code
