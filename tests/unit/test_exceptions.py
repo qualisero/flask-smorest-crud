@@ -25,6 +25,7 @@ class NoTracebackException(ApiException):
 
 
 class ExplicitTracebackException(ApiException):
+    TITLE = "Explicit Traceback Error"
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
     INCLUDE_TRACEBACK = True
 
