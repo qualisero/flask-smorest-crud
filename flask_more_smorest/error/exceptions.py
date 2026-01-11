@@ -12,7 +12,7 @@ from http import HTTPStatus
 from pprint import pformat
 from typing import TYPE_CHECKING
 
-from flask import make_response
+from flask import current_app, has_app_context, make_response
 
 from ..utils import convert_camel_to_snake
 
@@ -20,6 +20,21 @@ if TYPE_CHECKING:
     from flask import Response
 
 logger = logging.getLogger(__name__)
+
+
+def _is_debug_mode() -> bool:
+    """Check if Flask is running in debug or testing mode.
+
+    Uses Flask's app.debug and app.testing flags to determine if debug
+    information should be included in error responses. In production,
+    these should be False to avoid exposing internal implementation details.
+
+    Returns:
+        True if debug or testing mode is enabled, False otherwise
+    """
+    if not has_app_context():
+        return False
+    return current_app.debug or current_app.testing
 
 
 class ApiException(Exception):
@@ -33,7 +48,9 @@ class ApiException(Exception):
         TITLE: Human-readable error title (default: "Error")
         MESSAGE_PREFIX: Prefix for error messages (default: "")
         HTTP_STATUS_CODE: HTTP status code for the error (default: 500)
-        INCLUDE_TRACEBACK: Whether to include traceback in response (default: True)
+        INCLUDE_TRACEBACK: Whether to include traceback in response.
+            Set to None to use environment-aware default (enabled in debug/testing).
+            Set to True/False to override explicitly.
         debug_context: Additional context information for debugging
 
     Example:
@@ -46,8 +63,9 @@ class ApiException(Exception):
     TITLE = "Error"
     MESSAGE_PREFIX = ""
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
-    # TODO: set to False in production
-    INCLUDE_TRACEBACK = True
+    # None means use environment detection (debug/testing mode)
+    # True/False explicitly enables/disables traceback
+    INCLUDE_TRACEBACK: bool | None = None
     debug_context: dict[str, str | int | bool | dict | None] = {}
 
     def __init__(
@@ -101,15 +119,16 @@ class ApiException(Exception):
         debug_context: dict[str, str | int | bool | dict | None] = dict()
         debug_context.update(kwargs)
 
-        if True:  # TODO: check if auth is enabled
-            from ..perms.user_models import current_user, get_current_user_id
+        if _is_debug_mode():
+            from ..perms.user_models import get_current_user, get_current_user_id
 
             try:
                 user_id: uuid.UUID | None = get_current_user_id()
-                if user_id:
+                user = get_current_user()
+                if user_id and user:
                     debug_context["user"] = {
                         "id": user_id,
-                        "roles": [r.role for r in current_user.roles],
+                        "roles": [r.role for r in user.roles],
                     }
                 else:
                     debug_context["user"] = {
@@ -121,6 +140,19 @@ class ApiException(Exception):
                 debug_context["error"] = {"msg": "Error getting current user context"}
 
         return debug_context
+
+    def _should_include_traceback(self) -> bool:
+        """Determine if traceback should be included in the response.
+
+        Uses class attribute if explicitly set, otherwise checks Flask
+        debug/testing mode for environment-aware behavior.
+
+        Returns:
+            True if traceback should be included, False otherwise
+        """
+        if self.INCLUDE_TRACEBACK is not None:
+            return self.INCLUDE_TRACEBACK
+        return _is_debug_mode()
 
     def make_error_response(self) -> "Response":
         """Create a Flask response object for this error.
@@ -134,22 +166,24 @@ class ApiException(Exception):
             "title": self.TITLE,
             "error_code": self.error_code(),
             "details": self.custom_args,
-            "debug": {
-                "message": self.message,
-                # TODO hide traceback on production?
-                "debug_context": self.debug_context,
-            },
         }
 
-        if self.INCLUDE_TRACEBACK:
-            exc = sys.exception()
-            if exc is not None:
-                formatted_tb: list[str] = traceback.format_list(traceback.extract_tb(exc.__traceback__))
-                debug_block = error.get("debug")
-                if isinstance(debug_block, dict):
-                    debug_context = debug_block.get("debug_context")
-                    if isinstance(debug_context, dict):
-                        debug_context["traceback"] = formatted_tb
+        # Only include debug information in debug/testing mode
+        if _is_debug_mode():
+            error["debug"] = {
+                "message": self.message,
+                "debug_context": self.debug_context,
+            }
+
+            if self._should_include_traceback():
+                exc = sys.exception()
+                if exc is not None:
+                    formatted_tb: list[str] = traceback.format_list(traceback.extract_tb(exc.__traceback__))
+                    debug_block = error.get("debug")
+                    if isinstance(debug_block, dict):
+                        debug_context = debug_block.get("debug_context")
+                        if isinstance(debug_context, dict):
+                            debug_context["traceback"] = formatted_tb
 
         response_obj: dict[str, dict] = {"error": error}
 
@@ -183,7 +217,6 @@ class NotFoundError(ApiException):
 class ForbiddenError(ApiException):
     """403 Forbidden error with automatic session rollback."""
 
-    INCLUDE_TRACEBACK = True
     HTTP_STATUS_CODE = HTTPStatus.FORBIDDEN
 
     def __init__(self, message: str | None = None, **kwargs: str | int | bool | None) -> None:
@@ -203,6 +236,7 @@ class ForbiddenError(ApiException):
 class UnauthorizedError(ApiException):
     """401 Unauthorized error."""
 
+    # Never include traceback for auth errors (security)
     INCLUDE_TRACEBACK = False
     HTTP_STATUS_CODE = HTTPStatus.UNAUTHORIZED
 

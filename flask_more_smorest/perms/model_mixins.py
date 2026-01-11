@@ -48,7 +48,7 @@ class HasUserMixin:
         ...     __user_backref_name__ = "written_articles"
         ...     title: Mapped[str] = mapped_column(sa.String(200))
         ...
-        >>> article = Article(title="Test", author_id=current_user.id)
+        >>> article = Article(title="Test", author_id=get_current_user_id())
         >>> user.written_articles  # Custom backref name
 
     Example (No backref):

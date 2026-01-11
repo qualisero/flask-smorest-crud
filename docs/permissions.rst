@@ -248,8 +248,8 @@ Permission Models provide several helper methods:
        pass
 
    # Get current user from JWT (Flask-JWT-Extended proxy)
-   from flask_more_smorest.perms import current_user
-   user = current_user  # already loaded by JWT
+   from flask_more_smorest.perms import get_current_user
+   user = get_current_user()  # Safely loads from JWT
 
 Integration with CRUD Blueprints
 ---------------------------------
@@ -323,8 +323,8 @@ Here's a complete example of a blog with permission controls:
        @classmethod
        def _can_create(cls) -> bool:
            # Any authenticated user can create critters
-           from flask_more_smorest.perms import current_user
-           return current_user is not None
+           from flask_more_smorest.perms import get_current_user
+           return get_current_user() is not None
 
 
    class Toy(HasUserMixin, UserOwnershipMixin, BasePermsModel):

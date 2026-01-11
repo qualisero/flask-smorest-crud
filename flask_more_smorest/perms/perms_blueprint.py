@@ -37,7 +37,11 @@ class PermsBlueprintMixin:
         docstring: str,
         method_config: "MethodConfig",
     ) -> None:
-        """Configure endpoint admin/public decorator if needed.
+        """Configure endpoint with admin/public decorators if needed.
+
+        This method is called by CRUDBlueprint for each registered endpoint.
+        When used via PermsBlueprint, both this mixin's implementation and
+        CRUDBlueprint's implementation are called explicitly.
 
         Args:
             view_cls: MethodView class containing the endpoint
@@ -45,7 +49,6 @@ class PermsBlueprintMixin:
             docstring: Docstring to set on the method
             method_config: Configuration dict for the method
         """
-        # TODO: test that method from both CRUDBlueprint and PermsBlueprintMixin are called
         if hasattr(view_cls, method_name):
             method = getattr(view_cls, method_name)
             if method_config.get("admin_only", False):

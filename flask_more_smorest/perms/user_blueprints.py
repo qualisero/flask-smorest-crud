@@ -164,12 +164,13 @@ class UserBlueprint(_get_perms_crud_blueprint()):  # type: ignore[misc]
         @self.response(HTTPStatus.OK, user_schema_cls)
         def get_current_user_profile() -> User:
             """Get current authenticated user's profile."""
-            from .user_models import current_user
+            from .user_models import get_current_user
 
-            if not current_user or not current_user.id:
+            user = get_current_user()
+            if not user or not user.id:
                 raise UnauthorizedError("Not authenticated")
 
-            return current_user
+            return user
 
 
 # Lazy creation of default instance for backward compatibility

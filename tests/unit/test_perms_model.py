@@ -102,8 +102,8 @@ def test_is_current_user_admin_handles_runtime_error(monkeypatch: MonkeyPatch) -
         raise RuntimeError("no context")
 
     monkeypatch.setattr(
-        "flask_more_smorest.perms.base_perms_model.verify_jwt_in_request",
-        raise_runtime_error,
+        "flask_more_smorest.perms.user_models.get_current_user",
+        lambda: (_ for _ in ()).throw(RuntimeError("no context")),
     )
 
     assert BasePermsModel.is_current_user_admin() is False

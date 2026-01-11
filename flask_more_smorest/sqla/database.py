@@ -59,18 +59,37 @@ def init_db(app: "Flask") -> None:
         _register_performance_hooks(app)
 
 
+# Track if performance hooks have been registered (global to avoid duplicates)
+_performance_hooks_registered = False
+
+
 def _register_performance_hooks(app: "Flask") -> None:
     """Register SQLAlchemy event hooks for performance monitoring.
 
     This sets up before/after cursor execute events to track query
     execution times and log slow queries.
 
+    Note:
+        Configuration values (thresholds, log settings) are captured at
+        registration time. Changes to Flask config after init_db() won't
+        affect the monitoring behavior. Event listeners are registered
+        globally on the Engine class, so calling init_db() multiple times
+        will skip duplicate registration.
+
     Args:
         app: Flask application for configuration
     """
-    # Get configuration
+    global _performance_hooks_registered
+
+    # Prevent duplicate registration
+    if _performance_hooks_registered:
+        logger.debug("Performance monitoring hooks already registered, skipping")
+        return
+
+    # Get configuration (captured at registration time)
     slow_query_threshold = app.config.get("SQLALCHEMY_SLOW_QUERY_THRESHOLD", 1.0)
     log_all_queries = app.config.get("SQLALCHEMY_LOG_ALL_QUERIES", False)
+    log_parameters = app.config.get("SQLALCHEMY_LOG_QUERY_PARAMETERS", True)
 
     @event.listens_for(Engine, "before_cursor_execute")
     def before_cursor_execute(
@@ -102,25 +121,25 @@ def _register_performance_hooks(app: "Flask") -> None:
 
         # Track request-level statistics if in request context
         if has_app_context():
-            if not hasattr(g, "query_count"):
-                g.query_count = 0
-                g.total_query_time = 0.0
-            g.query_count += 1
-            g.total_query_time += duration
+            g.query_count = getattr(g, "query_count", 0) + 1
+            g.total_query_time = getattr(g, "total_query_time", 0.0) + duration
 
         # Log slow queries
         if duration >= slow_query_threshold:
             # Truncate long queries for logging
             truncated_statement = statement[:500] + "..." if len(statement) > 500 else statement
+            extra_data = {
+                "duration": duration,
+                "query": truncated_statement,
+            }
+            # Only log parameters if enabled (security consideration)
+            if log_parameters and parameters:
+                extra_data["parameters"] = str(parameters)[:200]
             logger.warning(
                 "Slow query detected: %.3fs - %s",
                 duration,
                 truncated_statement,
-                extra={
-                    "duration": duration,
-                    "query": truncated_statement,
-                    "parameters": str(parameters)[:200] if parameters else None,
-                },
+                extra=extra_data,
             )
         elif log_all_queries:
             logger.debug(
@@ -128,6 +147,8 @@ def _register_performance_hooks(app: "Flask") -> None:
                 duration,
                 statement[:200],
             )
+
+    _performance_hooks_registered = True
 
     logger.info(
         "SQLAlchemy performance monitoring enabled (slow query threshold: %.2fs)",
@@ -138,8 +159,10 @@ def _register_performance_hooks(app: "Flask") -> None:
 def get_request_query_stats() -> dict[str, Any]:
     """Get query statistics for the current request.
 
-    Returns a dictionary with query count and total time.
-    Only available when SQLALCHEMY_PERFORMANCE_MONITORING is enabled.
+    Returns a dictionary with query count and total time for the current
+    request. When called outside an application context, or when
+    SQLALCHEMY_PERFORMANCE_MONITORING is disabled (so no query stats have
+    been collected), this function returns zeros for both values.
 
     Returns:
         Dictionary with 'query_count' and 'total_query_time' keys
