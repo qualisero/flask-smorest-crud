@@ -9,13 +9,17 @@ import sys
 # Add project root to sys.path so Sphinx can import flask_more_smorest
 sys.path.insert(0, os.path.abspath(".."))
 
+# Import version from package
+from flask_more_smorest import __version__
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "flask-more-smorest"
 copyright = "2026, Qualisero"
 author = "Qualisero"
-release = "0.2.2"
+release = __version__
+version = ".".join(__version__.split(".")[:2])  # Short X.Y version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
