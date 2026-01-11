@@ -179,7 +179,12 @@ class BasePermsModel(SQLABaseModel):
         return self._can_write()
 
     def _check_permission(self, operation: str) -> None:
-        """Ensure permissions exist before mutating the resource."""
+        """Ensure permissions exist before mutating the resource.
+
+        Logs permission denials at WARNING level for debugging access issues.
+        """
+        from .user_models import get_current_user_id
+
         permission_methods = {
             "write": (self.can_write, "modify"),
             "create": (self.can_create, "create"),
@@ -187,6 +192,15 @@ class BasePermsModel(SQLABaseModel):
         }
         check_method, action = permission_methods[operation]
         if not check_method():
+            # Log permission denial for debugging
+            user_id = get_current_user_id()
+            logger.warning(
+                "Permission denied: user %s cannot %s %s (id=%s)",
+                user_id,
+                action,
+                self.__class__.__name__,
+                self.id,
+            )
             raise ForbiddenError(f"User not allowed to {action} this resource: {self}")
 
     def save(self, commit: bool = True) -> Self:

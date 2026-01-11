@@ -1,14 +1,18 @@
 """Extended Flask-Smorest API with authentication and permission support.
 
 This module provides an Api class that extends Flask-Smorest's Api with
-JWT authentication, permission checking, and custom schema name resolution.
+JWT authentication, permission checking, custom schema name resolution,
+and health check endpoint.
 """
 
-from typing import TYPE_CHECKING
+import datetime as dt
+import logging
+from typing import TYPE_CHECKING, Any
 
+import sqlalchemy as sa
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec.ext.marshmallow import resolver as default_resolver
-from flask import request
+from flask import jsonify, request
 from flask_jwt_extended import exceptions as jwt_exceptions
 from flask_jwt_extended import verify_jwt_in_request
 from flask_smorest import Api as ApiOrig
@@ -18,7 +22,9 @@ from ..error.exceptions import ForbiddenError, UnauthorizedError
 from .jwt import init_jwt
 
 if TYPE_CHECKING:
-    from flask import Flask
+    from flask import Flask, Response
+
+logger = logging.getLogger(__name__)
 
 
 class Api(ApiOrig):
@@ -97,6 +103,9 @@ class Api(ApiOrig):
 
         super().init_app(app, *pargs, **kwargs)
 
+        # Register health check endpoint
+        self._register_health_endpoint(app)
+
         extensions_state = app.extensions.setdefault("flask-more-smorest", {})
         if not extensions_state.get("require_login_registered", False):
 
@@ -136,6 +145,61 @@ class Api(ApiOrig):
                         raise ForbiddenError("Admin access only")
 
             extensions_state["require_login_registered"] = True
+
+    def _register_health_endpoint(self, app: "Flask") -> None:
+        """Register /health endpoint for monitoring and load balancers.
+
+        The health endpoint provides:
+        - Application status (healthy/unhealthy)
+        - Database connectivity check
+        - Timestamp and version information
+
+        This endpoint is public and does not require authentication.
+
+        Args:
+            app: Flask application to register the endpoint on
+        """
+        from .. import __version__
+
+        # Allow customizing the health endpoint path
+        health_path = app.config.get("HEALTH_ENDPOINT_PATH", "/health")
+
+        # Skip if disabled
+        if not app.config.get("HEALTH_ENDPOINT_ENABLED", True):
+            logger.debug("Health endpoint disabled via HEALTH_ENDPOINT_ENABLED=False")
+            return
+
+        @app.route(health_path)
+        def health_check() -> tuple["Response", int]:
+            """Health check endpoint for load balancers and monitoring.
+
+            Returns:
+                JSON response with health status and 200/503 status code
+            """
+            from ..sqla import db
+
+            health: dict[str, Any] = {
+                "status": "healthy",
+                "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+                "version": __version__,
+            }
+
+            # Check database connectivity
+            try:
+                db.session.execute(sa.text("SELECT 1"))
+                health["database"] = "connected"
+            except Exception as e:
+                logger.error("Health check failed: database error - %s", str(e))
+                health["database"] = "error"
+                health["status"] = "unhealthy"
+                return jsonify(health), 503
+
+            return jsonify(health), 200
+
+        # Mark as public endpoint
+        health_check._is_public = True  # type: ignore[attr-defined]
+
+        logger.debug("Registered health endpoint at %s", health_path)
 
 
 def custom_schema_name_resolver(schema: type[Schema], **kwargs: str | bool) -> str:

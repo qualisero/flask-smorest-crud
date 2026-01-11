@@ -1,7 +1,19 @@
 """Exception classes for Flask-More-Smorest API errors.
 
 This module provides a hierarchy of exception classes for handling API errors,
-with automatic logging, debug information, and standardized error responses.
+with RFC 7807 Problem Details format, automatic logging, and debug information.
+
+The error responses follow RFC 7807 (Problem Details for HTTP APIs):
+https://datatracker.ietf.org/doc/html/rfc7807
+
+Example response:
+    {
+        "type": "https://api.example.com/errors/not_found_error",
+        "title": "Not Found",
+        "status": 404,
+        "detail": "User with id 123 doesn't exist",
+        "instance": "/api/users/123"
+    }
 """
 
 import logging
@@ -10,9 +22,9 @@ import traceback
 import uuid
 from http import HTTPStatus
 from pprint import pformat
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from flask import current_app, has_app_context, make_response
+from flask import current_app, has_app_context, has_request_context, make_response, request
 
 from ..utils import convert_camel_to_snake
 
@@ -23,26 +35,37 @@ logger = logging.getLogger(__name__)
 
 
 def _is_debug_mode() -> bool:
-    """Check if Flask is running in debug or testing mode.
-
-    Uses Flask's app.debug and app.testing flags to determine if debug
-    information should be included in error responses. In production,
-    these should be False to avoid exposing internal implementation details.
-
-    Returns:
-        True if debug or testing mode is enabled, False otherwise
-    """
+    """Check if Flask is running in debug or testing mode."""
     if not has_app_context():
         return False
     return current_app.debug or current_app.testing
 
 
+def _get_error_type_uri(error_code: str) -> str:
+    """Generate the RFC 7807 'type' URI for an error.
+
+    Can be configured to point to actual documentation.
+    Or use relative URI that could be used as error code.
+
+    Args:
+        error_code: The snake_case error code
+
+    Returns:
+        URI string for the error type
+    """
+    if has_app_context():
+        base_url = current_app.config.get("ERROR_TYPE_BASE_URL", "/errors")
+    else:
+        base_url = "/errors"
+    return f"{base_url}/{error_code}"
+
+
 class ApiException(Exception):
     """Base exception class for all API errors.
 
-    This exception class provides automatic error response generation,
-    logging, and debug information collection. All custom API exceptions
-    should inherit from this class.
+    This exception class provides automatic error response generation
+    following RFC 7807 Problem Details format, along with logging and
+    debug information collection.
 
     Attributes:
         TITLE: Human-readable error title (default: "Error")
@@ -77,7 +100,6 @@ class ApiException(Exception):
 
         Args:
             message: Error message to display
-            exc: Original exception that caused this error
             **kwargs: Additional context information
         """
         self.custom_args: dict[str, str | int | bool | None] = dict(kwargs)
@@ -119,6 +141,7 @@ class ApiException(Exception):
         debug_context: dict[str, str | int | bool | dict | None] = dict()
         debug_context.update(kwargs)
 
+        # Only collect user context in debug mode to avoid performance overhead
         if _is_debug_mode():
             from ..perms.user_models import get_current_user, get_current_user_id
 
@@ -127,7 +150,7 @@ class ApiException(Exception):
                 user = get_current_user()
                 if user_id and user:
                     debug_context["user"] = {
-                        "id": user_id,
+                        "id": str(user_id),
                         "roles": [r.role for r in user.roles],
                     }
                 else:
@@ -155,54 +178,73 @@ class ApiException(Exception):
         return _is_debug_mode()
 
     def make_error_response(self) -> "Response":
-        """Create a Flask response object for this error.
+        """Create an RFC 7807 Problem Details response.
+
+        Returns a response following the RFC 7807 format:
+        - type: URI identifying the error type
+        - title: Human-readable title
+        - status: HTTP status code
+        - detail: Human-readable explanation
+        - instance: URI of the resource (if in request context)
+
+        In debug/testing mode, additional fields are included:
+        - debug: Object containing traceback and context
 
         Returns:
-            Flask Response object with error details and appropriate status code
+            Flask Response object with problem details
         """
-
-        error: dict[str, str | int | dict] = {
-            "status_code": self.HTTP_STATUS_CODE,
+        problem: dict[str, Any] = {
+            "type": _get_error_type_uri(self.error_code()),
             "title": self.TITLE,
-            "error_code": self.error_code(),
-            "details": self.custom_args,
+            "status": int(self.HTTP_STATUS_CODE),
+            "detail": self.message,
         }
+
+        # Add instance URI if in request context
+        if has_request_context():
+            problem["instance"] = request.path
+
+        # Include custom fields if provided
+        if self.custom_args:
+            problem["fields"] = self.custom_args
 
         # Only include debug information in debug/testing mode
         if _is_debug_mode():
-            error["debug"] = {
-                "message": self.message,
-                "debug_context": self.debug_context,
+            debug_info: dict[str, Any] = {
+                "error_code": self.error_code(),
+                "context": self.debug_context,
             }
 
             if self._should_include_traceback():
                 exc = sys.exception()
                 if exc is not None:
-                    formatted_tb: list[str] = traceback.format_list(traceback.extract_tb(exc.__traceback__))
-                    debug_block = error.get("debug")
-                    if isinstance(debug_block, dict):
-                        debug_context = debug_block.get("debug_context")
-                        if isinstance(debug_context, dict):
-                            debug_context["traceback"] = formatted_tb
+                    debug_info["traceback"] = traceback.format_list(traceback.extract_tb(exc.__traceback__))
 
-        response_obj: dict[str, dict] = {"error": error}
+            problem["debug"] = debug_info
 
-        return make_response(response_obj, self.HTTP_STATUS_CODE)
+        response = make_response(problem, self.HTTP_STATUS_CODE)
+        response.content_type = "application/problem+json"
+        return response
 
     def log_exception(self) -> None:
         """Log the exception with the appropriate level based on severity."""
-
         try:
             msg = f"{self.TITLE} ({self.error_code()}): {self.message}"
-            if len(self.custom_args):
+            if self.custom_args:
                 msg += f"\n{pformat(self.custom_args)}"
 
+            # Use structured logging with extra context
+            extra: dict[str, Any] = {"error_code": self.error_code()}
+            if _is_debug_mode():
+                for k, v in self.debug_context.items():
+                    extra[k] = v
+
             if self.HTTP_STATUS_CODE >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                logger.critical(msg, extra=self.debug_context, exc_info=True)
+                logger.critical(msg, extra=extra, exc_info=True)
             elif self.HTTP_STATUS_CODE >= HTTPStatus.BAD_REQUEST:
-                logger.warning(msg, extra=self.debug_context)
+                logger.warning(msg, extra=extra)
             else:
-                logger.info(msg, extra=self.debug_context)
+                logger.info(msg, extra=extra)
         except Exception as e:
             logger.critical(f"Error logging exception: {e}", exc_info=True)
 
@@ -211,12 +253,14 @@ class ApiException(Exception):
 class NotFoundError(ApiException):
     """404 Not Found error."""
 
+    TITLE = "Not Found"
     HTTP_STATUS_CODE = HTTPStatus.NOT_FOUND
 
 
 class ForbiddenError(ApiException):
     """403 Forbidden error with automatic session rollback."""
 
+    TITLE = "Forbidden"
     HTTP_STATUS_CODE = HTTPStatus.FORBIDDEN
 
     def __init__(self, message: str | None = None, **kwargs: str | int | bool | None) -> None:
@@ -236,6 +280,7 @@ class ForbiddenError(ApiException):
 class UnauthorizedError(ApiException):
     """401 Unauthorized error."""
 
+    TITLE = "Unauthorized"
     # Never include traceback for auth errors (security)
     INCLUDE_TRACEBACK = False
     HTTP_STATUS_CODE = HTTPStatus.UNAUTHORIZED
@@ -244,20 +289,22 @@ class UnauthorizedError(ApiException):
 class BadRequestError(ApiException):
     """400 Bad Request error."""
 
+    TITLE = "Bad Request"
     HTTP_STATUS_CODE = HTTPStatus.BAD_REQUEST
 
 
 class ConflictError(ApiException):
     """409 Conflict error."""
 
+    TITLE = "Conflict"
     HTTP_STATUS_CODE = HTTPStatus.CONFLICT
 
 
 class UnprocessableEntity(ApiException):
     """422 Unprocessable Entity error for validation failures.
 
-    This exception is used for request validation errors, typically
-    from Marshmallow schema validation.
+    This exception follows RFC 7807 with additional validation-specific fields:
+    - errors: Object mapping locations to field errors
 
     Attributes:
         fields: Dictionary of field names to error messages
@@ -265,6 +312,7 @@ class UnprocessableEntity(ApiException):
         valid_data: Data that passed validation (if any)
     """
 
+    TITLE = "Validation Error"
     HTTP_STATUS_CODE = HTTPStatus.UNPROCESSABLE_ENTITY
 
     fields: dict[str, str] = {}
@@ -296,61 +344,75 @@ class UnprocessableEntity(ApiException):
         super().__init__(message, **kwargs)
 
     def make_error_response(self) -> "Response":
-        """Create a response using Marshmallow's schema as model.
+        """Create an RFC 7807 response with validation errors.
+
+        Extends the base Problem Details format with validation-specific fields:
+        - errors: Object mapping location to field-level errors
 
         Returns:
             Flask Response object with validation error details
         """
-        data: dict[str, str | dict] = {
-            "message": self.message,
-            "errors": {self.location: {f: [v] for f, v in self.fields.items()}},
-            # "valid_data": self.valid_data,
+        problem: dict[str, Any] = {
+            "type": _get_error_type_uri(self.error_code()),
+            "title": self.TITLE,
+            "status": int(self.HTTP_STATUS_CODE),
+            "detail": self.message,
+            "errors": {self.location: {field: [msg] for field, msg in self.fields.items()}},
         }
-        response_obj: dict[str, str | dict] = data
-        return make_response(response_obj, self.HTTP_STATUS_CODE)
+
+        if has_request_context():
+            problem["instance"] = request.path
+
+        if _is_debug_mode() and self.debug_context:
+            problem["debug"] = {"context": self.debug_context}
+
+        response = make_response(problem, self.HTTP_STATUS_CODE)
+        response.content_type = "application/problem+json"
+        return response
 
 
 class InternalServerError(ApiException):
     """500 Internal Server Error."""
 
+    TITLE = "Internal Server Error"
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
 
     def get_debug_context(self, **kwargs: str | int | bool | None) -> dict[str, str | int | bool | dict | None]:
-        """Get debugging debug_context including exception information.
+        """Get debugging context including exception information.
 
         Args:
-            **kwargs: Additional debug_context information
+            **kwargs: Additional context information
 
         Returns:
-            Dictionary with base debug_context plus exception details
+            Dictionary with base context plus exception details
         """
         debug_context = super().get_debug_context(**kwargs)
 
         exc_type, exc_value, _exc_traceback = sys.exc_info()
-        debug_context["exception"] = {
-            "type": str(exc_type),
-            "value": str(exc_value),
-            # "traceback": exc_traceback,
-        }
+        if exc_type is not None:
+            debug_context["exception"] = {
+                "type": str(exc_type.__name__),
+                "value": str(exc_value),
+            }
         return debug_context
 
 
 class DBError(InternalServerError):
     """Database error (500 status code)."""
 
+    TITLE = "Database Error"
     HTTP_STATUS_CODE = HTTPStatus.INTERNAL_SERVER_ERROR
-    TITLE = "Database error"
 
 
 class NoTenantAccessError(ForbiddenError):
     """User does not have access to the requested tenant."""
 
-    TITLE = "Wrong tenant"
+    TITLE = "Tenant Access Denied"
     MESSAGE_PREFIX = "User does not have access to this tenant."
 
 
 class TenantNotFoundError(NotFoundError):
     """Requested tenant was not found."""
 
-    TITLE = "Tenant not found"
+    TITLE = "Tenant Not Found"
     MESSAGE_PREFIX = "Tenant not found."
