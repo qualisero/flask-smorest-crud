@@ -4,12 +4,6 @@ flask\_more\_smorest.perms
 .. automodule:: flask_more_smorest.perms
 
    
-   .. rubric:: Classes
-
-   .. autosummary::
-   
-      CRUDBlueprint
-   
 .. rubric:: Modules
 
 .. autosummary::
@@ -21,4 +15,6 @@ flask\_more\_smorest.perms
    jwt
    model_mixins
    perms_blueprint
+   user_blueprints
    user_models
+   user_schemas

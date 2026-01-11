@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-01-11
+
+### Added
+- **Health Check Endpoint**: Built-in `/health` endpoint for load balancers and monitoring systems
+  - Returns application status, database connectivity, version, and timestamp
+  - Configurable via `HEALTH_ENDPOINT_PATH` and `HEALTH_ENDPOINT_ENABLED`
+  - Automatically marked as public (no authentication required)
+- **SQLAlchemy Performance Monitoring**: Track and log slow database queries
+  - Configurable slow query threshold (default: 1.0 seconds)
+  - Per-request query statistics via `get_request_query_stats()`
+  - Optional logging of all queries at DEBUG level
+  - Minimal overhead when disabled
+- **Targeted Logging**: Purposeful logging for debugging
+  - Permission denial logging with user and resource context
+  - Health check failure logging
+  - Minimal, production-ready logging approach
+
+### Changed
+- **BREAKING**: Error responses now use RFC 7807 Problem Details format
+  - Content-Type changed to `application/problem+json`
+  - Response structure: `{type, title, status, detail, instance}` (was `{error: {status_code, title, error_code}}`)
+  - Debug information (traceback, context) only included in debug/testing mode
+  - Configurable error type URI base via `ERROR_TYPE_BASE_URL`
+- **Security**: Debug information now environment-aware
+  - Tracebacks only included when `app.debug` or `app.testing` is True
+  - `UnauthorizedError` never includes traceback
+- **Security**: JWT secret key validation in production
+  - `init_jwt()` raises `RuntimeError` if `JWT_SECRET_KEY` not set in production
+  - Production detected when both `app.debug` and `app.testing` are False
+
+### Fixed
+- Filter field validation prevents invalid attribute access
+- Improved lazy import error handling with better logging
+- Version consistency between package and pyproject.toml
+
+### Internal
+- Consolidated duplicate schema and model resolution code (~50 lines removed)
+- Unified `resolve_schema()` function for all schema resolution contexts
+
 ## [0.5.1] - 2026-01-05
 
 ### Changed

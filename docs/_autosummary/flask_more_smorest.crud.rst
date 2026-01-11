@@ -10,5 +10,7 @@ flask\_more\_smorest.crud
    :toctree:
    :recursive:
 
+   blueprint_operationid
    crud_blueprint
+   pagination
    query_filtering

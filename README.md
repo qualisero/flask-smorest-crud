@@ -19,6 +19,9 @@ Flask-More-Smorest extends **Flask-Smorest** with a number of enhancements and g
 - **Built-in user authentication** with JWT and role-based permissions
 - **UserBlueprint** for instant login/profile endpoints
 - **Resource-based permission management**
+- **Health check endpoint** for load balancers and monitoring
+- **RFC 7807 error responses** for standardized error handling
+- **SQLAlchemy performance monitoring** for identifying slow queries
 
 ## Quick Start
 
@@ -60,7 +63,7 @@ critters = CRUDBlueprint(
 api.register_blueprint(critters)
 ```
 
-This automatically creates RESTful endpoints: `GET /api/critters/`, `GET /api/critters/<id>`, `POST /api/critters/`, `PATCH /api/critters/<id>`, `DELETE /api/critters/<id>`, plus automatic filtering (`?created_at__from=...`, `?species=...`).
+This automatically creates RESTful endpoints: `GET /api/critters/`, `GET /api/critters/<id>`, `POST /api/critters/`, `PATCH /api/critters/<id>`, `DELETE /api/critters/<id>`, plus automatic filtering (`?created_at__from=...`, `?species=...`) and a health check endpoint at `/health`.
 
 ### Controlling endpoints
 
@@ -171,6 +174,66 @@ class PublicUser(User):
     PUBLIC_REGISTRATION = True  # Allow unauthenticated user creation
 
 public_bp = UserBlueprint(model=PublicUser, schema=PublicUser.Schema)
+```
+
+## Production Features
+
+### Health Check Endpoint
+
+Built-in health check for load balancers and monitoring systems:
+
+```bash
+curl http://localhost:5000/health
+```
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-11T08:30:00+00:00",
+  "version": "0.6.0",
+  "database": "connected"
+}
+```
+
+Configure via `HEALTH_ENDPOINT_PATH` and `HEALTH_ENDPOINT_ENABLED`.
+
+### RFC 7807 Error Responses
+
+Standardized error format following [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807):
+
+```json
+{
+  "type": "/errors/not_found_error",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "User with id 123 doesn't exist",
+  "instance": "/api/users/123"
+}
+```
+
+Debug information automatically included in debug/testing mode only.
+
+### SQLAlchemy Performance Monitoring
+
+Track and log slow queries:
+
+```python
+app.config.update(
+    SQLALCHEMY_PERFORMANCE_MONITORING=True,
+    SQLALCHEMY_SLOW_QUERY_THRESHOLD=0.5,  # Log queries over 500ms
+)
+```
+
+Get per-request statistics:
+
+```python
+from flask_more_smorest.sqla import get_request_query_stats
+
+@app.after_request
+def log_stats(response):
+    stats = get_request_query_stats()
+    print(f"Queries: {stats['query_count']}, Time: {stats['total_query_time']:.3f}s")
+    return response
 ```
 
 ## Learn more
