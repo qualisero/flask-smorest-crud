@@ -54,6 +54,77 @@ class MethodConfig(TypedDict, total=False):
 MethodConfigMapping = Mapping[CRUDMethod, MethodConfig | bool]
 
 
+def resolve_schema(
+    schema_candidate: type[Schema] | Schema | str | None,
+    schema_import_path: str,
+    default_schema: type[Schema] | None = None,
+    *,
+    context: str = "",
+) -> type[Schema]:
+    """Unified schema resolution for all contexts.
+
+    Resolves a schema reference (class, instance, or string name) to a Schema class.
+    This is the single source of truth for schema resolution throughout the blueprint.
+
+    Args:
+        schema_candidate: Schema to resolve - can be:
+            - A Schema class: returned directly
+            - A Schema instance: returns its class
+            - A string: imports from schema_import_path
+            - None: returns default_schema if provided
+        schema_import_path: Module path to import string schemas from
+        default_schema: Fallback schema if candidate is None
+        context: Description for error messages (e.g., "PATCH arg_schema")
+
+    Returns:
+        Resolved Schema class
+
+    Raises:
+        ValueError: If schema cannot be resolved or imported
+        TypeError: If resolved value is not a Schema subclass
+
+    Example:
+        >>> schema_cls = resolve_schema("UserSchema", "myapp.schemas")
+        >>> schema_cls = resolve_schema(UserSchema, "", default_schema=BaseSchema)
+    """
+    if schema_candidate is None:
+        if default_schema is None:
+            context_msg = f" for {context}" if context else ""
+            raise ValueError(f"No schema provided{context_msg} and no default available")
+        return default_schema
+
+    if isinstance(schema_candidate, str):
+        try:
+            schema_module = import_module(schema_import_path)
+            resolved = getattr(schema_module, schema_candidate)
+        except ImportError as e:
+            raise ValueError(f"Could not import module '{schema_import_path}' for schema '{schema_candidate}'.") from e
+        except AttributeError as e:
+            raise ValueError(f"Could not find schema '{schema_candidate}' in '{schema_import_path}'.") from e
+
+        # Validate imported schema is actually a Schema class
+        if not isinstance(resolved, type) or not issubclass(resolved, Schema):
+            context_msg = f" for {context}" if context else ""
+            raise TypeError(f"Resolved schema{context_msg} must be a Schema subclass, got {type(resolved).__name__}.")
+
+        return resolved
+
+    if isinstance(schema_candidate, type) and issubclass(schema_candidate, Schema):
+        return schema_candidate
+
+    if isinstance(schema_candidate, Schema):
+        return schema_candidate.__class__
+
+    # Defensive guard for unexpected types at runtime
+    # Type checker correctly marks this as unreachable given the type hints,
+    # but we keep it for robustness if called with unexpected types
+    context_msg = f" for {context}" if context else ""  # type: ignore[unreachable]
+    raise TypeError(
+        f"Schema{context_msg} must be a string, Schema subclass, or Schema instance; "
+        f"got {type(schema_candidate).__name__}."
+    )
+
+
 @dataclass
 class CRUDConfig:
     """Configuration object for CRUD blueprint setup."""
@@ -242,38 +313,19 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
         resolved_model_import_path: str = model_import_name or ".".join(import_name.split(".")[:-1] + ["models"])
         resolved_schema_import_path: str = schema_import_name or ".".join(import_name.split(".")[:-1] + ["schemas"])
 
-        model_or_name = model or convert_snake_to_camel(name.capitalize())
-        model_cls: type[BaseModel]
-        if isinstance(model_or_name, str):
-            try:
-                model_cls = getattr(import_module(resolved_model_import_path), model_or_name)
-            except (ImportError, AttributeError) as e:
-                raise ValueError(
-                    f"Could not import model '{model_or_name}' from '{resolved_model_import_path}'."
-                ) from e
-        elif isinstance(model_or_name, type) and issubclass(model_or_name, BaseModel):
-            model_cls = model_or_name
-        else:
-            raise ValueError("CRUDBlueprint 'model' argument must be a string or a BaseModel subclass.")
+        # Resolve model class
+        model_cls = self._resolve_model_class(
+            model or convert_snake_to_camel(name.capitalize()),
+            resolved_model_import_path,
+        )
 
-        schema_or_name = schema
-        schema_cls: type[Schema]
-
-        if schema_or_name is None:
-            schema_or_name = model_cls.Schema
-
-        if isinstance(schema_or_name, str):
-            try:
-                schema_module = import_module(resolved_schema_import_path)
-                schema_cls = getattr(schema_module, schema_or_name)
-            except (ImportError, AttributeError) as e:
-                raise ValueError(
-                    f"Could not import schema '{schema_or_name}' from '{resolved_schema_import_path}'."
-                ) from e
-        elif isinstance(schema_or_name, type) and issubclass(schema_or_name, Schema):
-            schema_cls = schema_or_name
-        else:
-            raise ValueError("CRUDBlueprint 'schema' argument must be a string or a Schema subclass.")
+        # Resolve schema class using unified resolver
+        schema_cls = resolve_schema(
+            schema,
+            resolved_schema_import_path,
+            default_schema=model_cls.Schema,
+            context="blueprint schema",
+        )
 
         res_id_param_name: str = res_id_param or f"{name.lower()}_id"
 
@@ -376,6 +428,48 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
 
         return normalized
 
+    @staticmethod
+    def _resolve_model_class(
+        model_candidate: type[BaseModel] | str,
+        model_import_path: str,
+    ) -> type[BaseModel]:
+        """Resolve a model reference (class or string name) to a BaseModel subclass.
+
+        Args:
+            model_candidate: Model class or string name to resolve
+            model_import_path: Module path to import string models from
+
+        Returns:
+            Resolved BaseModel subclass
+
+        Raises:
+            ValueError: If model cannot be imported or resolved
+        """
+        if isinstance(model_candidate, str):
+            try:
+                model_module = import_module(model_import_path)
+                model_cls = getattr(model_module, model_candidate)
+            except ImportError as e:
+                raise ValueError(f"Could not import module '{model_import_path}' for model '{model_candidate}'.") from e
+            except AttributeError as e:
+                raise ValueError(f"Could not find model '{model_candidate}' in '{model_import_path}'.") from e
+
+            # Validate imported model is actually a BaseModel subclass
+            if not isinstance(model_cls, type) or not issubclass(model_cls, BaseModel):
+                raise ValueError(
+                    f"Imported '{model_candidate}' from '{model_import_path}' "
+                    f"is not a BaseModel subclass, got {type(model_cls).__name__}."
+                )
+            return model_cls
+
+        if isinstance(model_candidate, type) and issubclass(model_candidate, BaseModel):
+            return model_candidate
+
+        raise ValueError(
+            f"CRUDBlueprint 'model' argument must be a string or a BaseModel subclass, "
+            f"got {type(model_candidate).__name__}."
+        )
+
     def _resolve_schema_class(
         self,
         schema_candidate: type[Schema] | Schema | str,
@@ -383,35 +477,32 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
         config: CRUDConfig,
         method: CRUDMethod,
     ) -> type[Schema]:
-        """Resolve a schema reference (string/class/instance) to a Schema subclass."""
+        """Resolve a schema reference for a specific CRUD method.
 
-        if isinstance(schema_candidate, str):
-            try:
-                schema_module = import_module(config.schema_import_path)
-                resolved = getattr(schema_module, schema_candidate)
-            except (ImportError, AttributeError) as e:
-                raise ValueError(
-                    f"Could not import schema '{schema_candidate}' from '{config.schema_import_path}'."
-                ) from e
-        elif isinstance(schema_candidate, type) and issubclass(schema_candidate, Schema):
-            resolved = schema_candidate
-        elif isinstance(schema_candidate, Schema):
-            resolved = schema_candidate.__class__
-        else:
-            raise TypeError(
-                f"CRUDBlueprint {method.value} schema must be a string, Schema subclass, or Schema instance;"
-                f" got {type(schema_candidate)!r}."
-            )
+        This is a convenience wrapper around the module-level resolve_schema
+        function, providing method-specific context for error messages.
 
-        if not isinstance(resolved, type) or not issubclass(resolved, Schema):
-            raise TypeError(f"Resolved schema for {method.value} must be a Schema subclass, got {type(resolved)!r}.")
+        Args:
+            schema_candidate: Schema to resolve
+            config: CRUD configuration with import paths
+            method: The CRUD method this schema is for
 
-        return resolved
+        Returns:
+            Resolved Schema class
+        """
+        return resolve_schema(
+            schema_candidate,
+            config.schema_import_path,
+            context=f"{method.value} method",
+        )
 
     def _prepare_update_schema(
         self, config: CRUDConfig
     ) -> Schema | type[Schema] | SQLAlchemySchema | type[SQLAlchemySchema]:
         """Create update schema for PATCH operations.
+
+        If an explicit arg_schema is provided in PATCH method config, it's used.
+        Otherwise, creates a partial version of the default schema.
 
         Args:
             config: Configuration object
@@ -419,28 +510,22 @@ class CRUDBlueprint(CRUDPaginationMixin, BlueprintOperationIdMixin, Blueprint):
         Returns:
             Update schema instance or class
         """
+        patch_config = config.methods.get(CRUDMethod.PATCH, {})
+        update_schema_arg = patch_config.get("arg_schema")
 
-        update_schema: Schema | type[Schema] | SQLAlchemySchema | type[SQLAlchemySchema]
+        if update_schema_arg is not None:
+            # Explicit patch schema provided - use unified resolver
+            return resolve_schema(
+                update_schema_arg,
+                config.schema_import_path,
+                context="PATCH arg_schema",
+            )
 
-        if update_schema_arg := config.methods.get(CRUDMethod.PATCH, {}).get("arg_schema"):
-            # Explicit patch schema provided
-            if isinstance(update_schema_arg, str):
-                try:
-                    schema_module = import_module(config.schema_import_path)
-                    update_schema = getattr(schema_module, update_schema_arg)
-                except (ImportError, AttributeError) as e:
-                    raise ValueError(
-                        f"Could not import schema '{update_schema_arg}' from '{config.schema_import_path}'."
-                    ) from e
-            elif isinstance(update_schema_arg, type) and issubclass(update_schema_arg, Schema):
-                update_schema = update_schema_arg
-            else:
-                raise TypeError("PATCH 'arg_schema' must be a string or Schema class/instance.")
-        else:
-            # NOTE: the following will trigger a warning in apispec if no custom resolver is set
-            update_schema = config.schema_cls(partial=True)
-            if isinstance(update_schema, SQLAlchemySchema):
-                update_schema._load_instance = False
+        # Create partial schema from default
+        # NOTE: the following will trigger a warning in apispec if no custom resolver is set
+        update_schema = config.schema_cls(partial=True)
+        if isinstance(update_schema, SQLAlchemySchema):
+            update_schema._load_instance = False
 
         return update_schema
 
